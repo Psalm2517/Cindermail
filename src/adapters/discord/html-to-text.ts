@@ -39,6 +39,14 @@ const ANCHOR_TAG = /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/
 const HIDDEN_ELEMENT =
   /<(span|div|td|p)\b(?=[^>]*\b(?:class\s*=\s*["'][^"']*(?:sr-only|screen-?reader|visually-?hidden|assistive)[^"']*["']|style\s*=\s*["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0)[^"']*["']))[^>]*>[\s\S]*?<\/\1>/gi;
 
+// Placeholders standing in for the <> a link's URL gets wrapped in, which
+// suppresses Discord's separate auto-embed link-preview card. The generic
+// tag-stripping pass later in the pipeline would otherwise mistake a
+// literal "<url>" for an HTML tag and delete it, so real angle brackets are
+// swapped in only as the final step, once no more tag-stripping will run.
+const ANGLE_OPEN = "";
+const ANGLE_CLOSE = "";
+
 function replaceLinks(text: string): string {
   const seenUrls = new Set<string>();
 
@@ -64,7 +72,7 @@ function replaceLinks(text: string): string {
     }
     seenUrls.add(url);
 
-    return `${label} (${url})`;
+    return `${label} (${ANGLE_OPEN}${url}${ANGLE_CLOSE})`;
   });
 }
 
@@ -82,6 +90,8 @@ export function htmlToText(html: string): string {
     .replace(/<[^>]+>/g, "");
 
   text = decodeEntities(text);
+
+  text = text.split(ANGLE_OPEN).join("<").split(ANGLE_CLOSE).join(">");
 
   return text
     .split("\n")
