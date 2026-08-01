@@ -28,6 +28,13 @@ function decodeEntities(text: string): string {
   });
 }
 
+// Invisible formatting characters (zero-width joiners/non-joiners, word
+// joiner, soft hyphen, combining grapheme joiner, BOM) — ESPs commonly pad
+// a hidden preheader with hundreds of these to control the inbox preview
+// snippet. They render as nothing but count as real characters, so left
+// alone they silently eat into the inline-preview length budget.
+const INVISIBLE_CHARS = /[​-‏‪-‮⁠﻿­͏]/g;
+
 const BLOCK_CLOSE_TAGS = /<\/(p|div|tr|table|li|h[1-6]|blockquote|section|article|header|footer)>/gi;
 const BREAK_TAGS = /<br\s*\/?>/gi;
 const ANCHOR_TAG = /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
@@ -86,6 +93,7 @@ function replaceLinks(text: string): string {
 
 export function htmlToText(html: string): string {
   let text = html
+    .replace(INVISIBLE_CHARS, "")
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, "")
     .replace(HIDDEN_ELEMENT_CANDIDATE, (match) => (match.length <= HIDDEN_ELEMENT_MAX_LENGTH ? "" : match));
