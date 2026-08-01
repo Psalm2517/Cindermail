@@ -1,6 +1,6 @@
 import { fileURLToPath, URL as NodeURL } from "node:url";
 import { SMTPServer, type SMTPServerDataStream, type SMTPServerSession } from "smtp-server";
-import { printBanner } from "../banner.ts";
+import { printFlame } from "../banner.ts";
 import { loadEnvFile } from "../env-file.ts";
 import { createDiscordAdapter } from "../adapters/discord/index.ts";
 import { buildCommandConfig } from "../adapters/discord/config.ts";
@@ -66,6 +66,7 @@ function startSmtpServer(config: ReturnType<typeof loadNodeHostConfig>, db: SqlE
 }
 
 function main() {
+  printFlame();
   loadEnvFile();
   const config = loadNodeHostConfig();
   const rawDb = openSqliteDatabase(config.sqlitePath, fileURLToPath(new NodeURL("../../schema.sql", import.meta.url)));
@@ -75,7 +76,7 @@ function main() {
   const createAddressFn = (executor: SqlExecutor, owner: OwnerRef, ttl: number) =>
     createAddress(executor, owner, config.disposableDomain, ttl);
 
-  printBanner(`domain: ${config.disposableDomain}, storage: ${config.sqlitePath}`);
+  console.log(`Cindermail  domain: ${config.disposableDomain}, storage: ${config.sqlitePath}`);
   startSmtpServer(config, db, dispatcher);
   startHttpServer(config.httpPort, config.discordPublicKey, db, createAddressFn, commandConfig);
   scheduleCleanup(() => {
