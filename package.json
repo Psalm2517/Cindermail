@@ -1,0 +1,23 @@
+{
+  "name": "cinderbox",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "discord-interactions": "^4.4.0",
+    "postal-mime": "^2.7.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
+    "@types/node": "^26.1.2",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.118.0"
+  }
+}

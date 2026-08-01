@@ -1,0 +1,31 @@
+# Copy this file to wrangler.toml and fill in your own domain and D1
+# database_id (from `wrangler d1 create`). wrangler.toml is gitignored so
+# your account-specific values never get committed.
+
+name = "cinderbox"
+main = "src/worker.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+DISPOSABLE_DOMAIN = "example.com"
+ADAPTERS = "discord"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cinderbox"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[triggers]
+crons = ["0 3 * * *"]
+
+# Email Routing: after deploying, add this Worker as a destination for your
+# catch-all (or per-address) routing rule on your zone — either in the
+# dashboard (Email > Email Routing) or via the Cloudflare API. Cloudflare
+# manages the underlying MX/TXT records automatically once Email Routing is
+# enabled on the zone.
+
+# Secrets (never put these here — set with `wrangler secret put <NAME>`):
+#   DISCORD_TOKEN
+#   DISCORD_PUBLIC_KEY
+#   DISCORD_APPLICATION_ID
