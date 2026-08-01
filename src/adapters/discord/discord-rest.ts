@@ -6,17 +6,8 @@ export interface DiscordFile {
   content: ArrayBuffer;
 }
 
-export interface DiscordEmbed {
-  title?: string;
-  description?: string;
-  color?: number;
-  author?: { name: string };
-  footer?: { text: string };
-}
-
 export interface SendMessagePayload {
   content?: string;
-  embeds?: DiscordEmbed[];
   files?: DiscordFile[];
 }
 
@@ -57,10 +48,7 @@ export async function sendMessage(
   channelId: string,
   payload: SendMessagePayload
 ): Promise<void> {
-  const base = {
-    content: payload.content ?? "",
-    embeds: payload.embeds ?? [],
-  };
+  const base = { content: payload.content ?? "" };
 
   if (!payload.files || payload.files.length === 0) {
     await discordFetch(botToken, `/channels/${channelId}/messages`, {
