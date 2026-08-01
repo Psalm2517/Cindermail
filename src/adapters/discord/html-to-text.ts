@@ -36,8 +36,16 @@ const ANCHOR_TAG = /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/
 // pattern of a hidden <span> with a label like "Experian header logo" next to
 // a logo/icon <img>) is visually hidden via CSS, not omitted from the HTML —
 // so a naive tag-strip surfaces it as if it were real, visible link text.
-const HIDDEN_ELEMENT =
+//
+// display:none / visibility:hidden are ALSO used for entirely unrelated,
+// legitimate reasons in email templates — dark-mode overrides, hidden
+// preheader tricks, mobile-vs-desktop alternate layouts — and those can
+// wrap huge chunks of the real, intended content. Only treat this as a
+// throwaway accessibility label when it's short; an actual a11y label is a
+// few words, never a full content block.
+const HIDDEN_ELEMENT_CANDIDATE =
   /<(span|div|td|p)\b(?=[^>]*\b(?:class\s*=\s*["'][^"']*(?:sr-only|screen-?reader|visually-?hidden|assistive)[^"']*["']|style\s*=\s*["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0)[^"']*["']))[^>]*>[\s\S]*?<\/\1>/gi;
+const HIDDEN_ELEMENT_MAX_LENGTH = 300;
 
 // Placeholders standing in for the <> a link's URL gets wrapped in, which
 // suppresses Discord's separate auto-embed link-preview card. The generic
@@ -80,7 +88,7 @@ export function htmlToText(html: string): string {
   let text = html
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, "")
-    .replace(HIDDEN_ELEMENT, "");
+    .replace(HIDDEN_ELEMENT_CANDIDATE, (match) => (match.length <= HIDDEN_ELEMENT_MAX_LENGTH ? "" : match));
 
   text = replaceLinks(text);
 
