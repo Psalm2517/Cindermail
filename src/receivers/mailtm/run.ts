@@ -1,5 +1,6 @@
 import { fileURLToPath, URL as NodeURL } from "node:url";
 import { printBanner } from "../../banner.ts";
+import { loadEnvFile } from "../../env-file.ts";
 import { createDiscordAdapter } from "../../adapters/discord/index.ts";
 import { buildCommandConfig } from "../../adapters/discord/config.ts";
 import { createDispatcher } from "../../core/dispatch.ts";
@@ -21,6 +22,7 @@ function buildAdapters(adapters: string[], discordToken: string): MailAdapter[] 
 }
 
 function main() {
+  loadEnvFile();
   const config = loadMailtmConfig();
   const rawDb = openSqliteDatabase(config.sqlitePath, fileURLToPath(new NodeURL("../../../schema.sql", import.meta.url)));
   const db = createSqliteExecutor(rawDb);
