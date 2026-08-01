@@ -1,11 +1,22 @@
-import PostalMime from "postal-mime";
-import { getAddress } from "./db";
-import type { Dispatcher } from "./dispatch";
-import type { OwnerRef, ParsedMail } from "./types";
+import PostalMime, { type RawEmail } from "postal-mime";
+import { getAddress } from "./db.ts";
+import type { Dispatcher } from "./dispatch.ts";
+import type { SqlExecutor } from "./storage.ts";
+import type { OwnerRef, ParsedMail } from "./types.ts";
+
+// Deliberately not Cloudflare's ForwardableEmailMessage — postal-mime already
+// accepts every raw format either deployment target hands it (a Worker's
+// ReadableStream, a Buffer from a self-hosted SMTP server), so this is the
+// only shape core needs to know about.
+export interface InboundMessage {
+  to: string;
+  from: string;
+  raw: RawEmail;
+}
 
 export async function handleInboundEmail(
-  message: ForwardableEmailMessage,
-  db: D1Database,
+  message: InboundMessage,
+  db: SqlExecutor,
   dispatcher: Dispatcher
 ): Promise<void> {
   const recipient = message.to.toLowerCase();

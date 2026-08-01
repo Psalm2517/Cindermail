@@ -4,24 +4,15 @@ import {
   extendAddress,
   listActiveAddresses,
   revokeAddress,
-} from "../../core/db";
-import { checkAndIncrement } from "../../core/ratelimit";
-import type { OwnerRef } from "../../core/types";
-
-const SEVEN_DAYS_SECONDS = 7 * 24 * 60 * 60;
-const MAX_ACTIVE_ADDRESSES = 5;
-
-// Every command costs D1 reads/writes, so all of them are limited, not just
-// the one that creates rows. /new stays deliberately strict; the rest are
-// loose enough that ordinary use never notices while still bounding abuse.
-const RATE_LIMITS: Record<string, { windowSeconds: number; maxCount: number; message: string }> = {
-  new: { windowSeconds: 30, maxCount: 1, message: "You're creating addresses too quickly. Try again in a bit." },
-  list: { windowSeconds: 60, maxCount: 15, message: "Slow down a moment, then try again." },
-  extend: { windowSeconds: 60, maxCount: 15, message: "Slow down a moment, then try again." },
-  torch: { windowSeconds: 60, maxCount: 15, message: "Slow down a moment, then try again." },
-};
+} from "../../core/db.ts";
+import { checkAndIncrement } from "../../core/ratelimit.ts";
+import type { SqlExecutor } from "../../core/storage.ts";
+import type { OwnerRef } from "../../core/types.ts";
+import type { CommandConfig } from "./config.ts";
 
 const EPHEMERAL = 64;
+
+const RATE_LIMIT_MESSAGE = "Slow down a moment, then try again.";
 
 interface DiscordInteractionOption {
   name: string;
@@ -53,7 +44,12 @@ function getOption(interaction: DiscordInteraction, name: string): string | unde
   return interaction.data?.options?.find((o) => o.name === name)?.value;
 }
 
-export async function handleInteraction(interaction: DiscordInteraction, db: D1Database, domain: string) {
+export async function handleInteraction(
+  interaction: DiscordInteraction,
+  db: SqlExecutor,
+  domain: string,
+  config: CommandConfig
+) {
   const userId = getInvokingUserId(interaction);
   if (!userId) {
     return ephemeralReply("Could not identify the invoking user.");
@@ -61,7 +57,7 @@ export async function handleInteraction(interaction: DiscordInteraction, db: D1D
   const owner: OwnerRef = { type: "discord", id: userId };
   const commandName = interaction.data?.name;
 
-  const limit = commandName ? RATE_LIMITS[commandName] : undefined;
+  const limit = commandName ? config.rateLimits[commandName] : undefined;
   if (limit) {
     const allowed = await checkAndIncrement(
       db,
@@ -72,17 +68,17 @@ export async function handleInteraction(interaction: DiscordInteraction, db: D1D
       limit.maxCount
     );
     if (!allowed) {
-      return ephemeralReply(limit.message);
+      return ephemeralReply(RATE_LIMIT_MESSAGE);
     }
   }
 
   switch (commandName) {
     case "new":
-      return handleNew(db, owner, domain);
+      return handleNew(db, owner, domain, config);
     case "list":
       return handleList(db, owner);
     case "extend":
-      return handleExtend(db, owner, getOption(interaction, "address"));
+      return handleExtend(db, owner, getOption(interaction, "address"), config);
     case "torch":
       return handleTorch(db, owner, getOption(interaction, "address"));
     default:
@@ -90,19 +86,20 @@ export async function handleInteraction(interaction: DiscordInteraction, db: D1D
   }
 }
 
-async function handleNew(db: D1Database, owner: OwnerRef, domain: string) {
+async function handleNew(db: SqlExecutor, owner: OwnerRef, domain: string, config: CommandConfig) {
   const activeCount = await countActiveAddresses(db, owner);
-  if (activeCount >= MAX_ACTIVE_ADDRESSES) {
+  if (activeCount >= config.maxActiveAddresses) {
     return ephemeralReply(
-      `You already have ${MAX_ACTIVE_ADDRESSES} active addresses. Torch one before creating another.`
+      `You already have ${config.maxActiveAddresses} active addresses. Torch one before creating another.`
     );
   }
 
-  const address = await createAddress(db, owner, domain, SEVEN_DAYS_SECONDS);
-  return ephemeralReply(`Your new disposable address: \`${address}\`\nExpires in 7 days.`);
+  const address = await createAddress(db, owner, domain, config.addressTtlSeconds);
+  const days = Math.round(config.addressTtlSeconds / 86400);
+  return ephemeralReply(`Your new disposable address: \`${address}\`\nExpires in ${days} day${days === 1 ? "" : "s"}.`);
 }
 
-async function handleList(db: D1Database, owner: OwnerRef) {
+async function handleList(db: SqlExecutor, owner: OwnerRef) {
   const addresses = await listActiveAddresses(db, owner);
   if (addresses.length === 0) {
     return ephemeralReply("You have no active addresses.");
@@ -111,18 +108,24 @@ async function handleList(db: D1Database, owner: OwnerRef) {
   return ephemeralReply(lines.join("\n"));
 }
 
-async function handleExtend(db: D1Database, owner: OwnerRef, address: string | undefined) {
+async function handleExtend(
+  db: SqlExecutor,
+  owner: OwnerRef,
+  address: string | undefined,
+  config: CommandConfig
+) {
   if (!address) {
     return ephemeralReply("Missing address.");
   }
-  const updated = await extendAddress(db, owner, address, SEVEN_DAYS_SECONDS);
+  const updated = await extendAddress(db, owner, address, config.addressTtlSeconds);
   if (!updated) {
     return ephemeralReply("Not found or not yours.");
   }
-  return ephemeralReply(`Extended \`${address}\` by 7 days.`);
+  const days = Math.round(config.addressTtlSeconds / 86400);
+  return ephemeralReply(`Extended \`${address}\` by ${days} day${days === 1 ? "" : "s"}.`);
 }
 
-async function handleTorch(db: D1Database, owner: OwnerRef, address: string | undefined) {
+async function handleTorch(db: SqlExecutor, owner: OwnerRef, address: string | undefined) {
   if (!address) {
     return ephemeralReply("Missing address.");
   }

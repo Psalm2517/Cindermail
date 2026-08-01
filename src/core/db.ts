@@ -1,4 +1,5 @@
-import type { AddressRow, OwnerRef } from "./types";
+import type { SqlExecutor } from "./storage.ts";
+import type { AddressRow, OwnerRef } from "./types.ts";
 
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 const LOCAL_PART_LENGTH = 10;
@@ -31,7 +32,7 @@ function randomLocalPart(): string {
 }
 
 export async function createAddress(
-  db: D1Database,
+  db: SqlExecutor,
   owner: OwnerRef,
   domain: string,
   ttlSeconds: number
@@ -41,16 +42,18 @@ export async function createAddress(
 
   for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
     const address = `${randomLocalPart()}@${domain}`;
-    const result = await db
-      .prepare(
-        `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked)
-         VALUES (?, ?, ?, ?, ?, 0)
-         ON CONFLICT(address) DO NOTHING`
-      )
-      .bind(address, owner.type, owner.id, now, expiresAt)
-      .run();
+    const result = await db.run(
+      `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked)
+       VALUES (?, ?, ?, ?, ?, 0)
+       ON CONFLICT(address) DO NOTHING`,
+      address,
+      owner.type,
+      owner.id,
+      now,
+      expiresAt
+    );
 
-    if (result.meta.changes > 0) {
+    if (result.changes > 0) {
       return address;
     }
   }
@@ -58,94 +61,89 @@ export async function createAddress(
   throw new Error("failed to allocate a unique address after several attempts");
 }
 
-export async function getAddress(db: D1Database, address: string): Promise<AddressRow | null> {
-  const row = await db
-    .prepare(`SELECT * FROM addresses WHERE address = ?`)
-    .bind(address)
-    .first<AddressRow>();
-  return row ?? null;
+export async function getAddress(db: SqlExecutor, address: string): Promise<AddressRow | null> {
+  return db.first<AddressRow>(`SELECT * FROM addresses WHERE address = ?`, address);
 }
 
-export async function listActiveAddresses(db: D1Database, owner: OwnerRef): Promise<AddressRow[]> {
+export async function listActiveAddresses(db: SqlExecutor, owner: OwnerRef): Promise<AddressRow[]> {
   const now = Math.floor(Date.now() / 1000);
-  const result = await db
-    .prepare(
-      `SELECT * FROM addresses
-       WHERE owner_type = ? AND owner_id = ? AND revoked = 0 AND expires_at > ?
-       ORDER BY expires_at ASC`
-    )
-    .bind(owner.type, owner.id, now)
-    .all<AddressRow>();
-  return result.results ?? [];
+  return db.all<AddressRow>(
+    `SELECT * FROM addresses
+     WHERE owner_type = ? AND owner_id = ? AND revoked = 0 AND expires_at > ?
+     ORDER BY expires_at ASC`,
+    owner.type,
+    owner.id,
+    now
+  );
 }
 
-export async function countActiveAddresses(db: D1Database, owner: OwnerRef): Promise<number> {
+export async function countActiveAddresses(db: SqlExecutor, owner: OwnerRef): Promise<number> {
   const now = Math.floor(Date.now() / 1000);
-  const row = await db
-    .prepare(
-      `SELECT COUNT(*) as count FROM addresses
-       WHERE owner_type = ? AND owner_id = ? AND revoked = 0 AND expires_at > ?`
-    )
-    .bind(owner.type, owner.id, now)
-    .first<{ count: number }>();
+  const row = await db.first<{ count: number }>(
+    `SELECT COUNT(*) as count FROM addresses
+     WHERE owner_type = ? AND owner_id = ? AND revoked = 0 AND expires_at > ?`,
+    owner.type,
+    owner.id,
+    now
+  );
   return row?.count ?? 0;
 }
 
 export async function extendAddress(
-  db: D1Database,
+  db: SqlExecutor,
   owner: OwnerRef,
   address: string,
   ttlSeconds: number
 ): Promise<boolean> {
   const newExpiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
-  const result = await db
-    .prepare(
-      `UPDATE addresses SET expires_at = ?
-       WHERE address = ? AND owner_type = ? AND owner_id = ? AND revoked = 0`
-    )
-    .bind(newExpiresAt, address, owner.type, owner.id)
-    .run();
-  return result.meta.changes > 0;
+  const result = await db.run(
+    `UPDATE addresses SET expires_at = ?
+     WHERE address = ? AND owner_type = ? AND owner_id = ? AND revoked = 0`,
+    newExpiresAt,
+    address,
+    owner.type,
+    owner.id
+  );
+  return result.changes > 0;
 }
 
-export async function revokeAddress(db: D1Database, owner: OwnerRef, address: string): Promise<boolean> {
+export async function revokeAddress(db: SqlExecutor, owner: OwnerRef, address: string): Promise<boolean> {
   const now = Math.floor(Date.now() / 1000);
-  const result = await db
-    .prepare(
-      `UPDATE addresses SET revoked = 1, revoked_at = ?
-       WHERE address = ? AND owner_type = ? AND owner_id = ? AND revoked = 0`
-    )
-    .bind(now, address, owner.type, owner.id)
-    .run();
-  return result.meta.changes > 0;
+  const result = await db.run(
+    `UPDATE addresses SET revoked = 1, revoked_at = ?
+     WHERE address = ? AND owner_type = ? AND owner_id = ? AND revoked = 0`,
+    now,
+    address,
+    owner.type,
+    owner.id
+  );
+  return result.changes > 0;
 }
 
 // Expired rows are removed once they are `graceSeconds` past expiry; revoked
 // rows once they are `graceSeconds` past the moment they were revoked, rather
 // than waiting out their original (possibly week-long) expiry. Rows revoked
 // before revoked_at existed have no timestamp, so they fall back to expiry.
-export async function deleteExpiredAndRevoked(db: D1Database, graceSeconds: number): Promise<number> {
+export async function deleteExpiredAndRevoked(db: SqlExecutor, graceSeconds: number): Promise<number> {
   const now = Math.floor(Date.now() / 1000);
-  const result = await db
-    .prepare(
-      `DELETE FROM addresses
-       WHERE (revoked = 1 AND COALESCE(revoked_at, expires_at) + ? <= ?)
-          OR (expires_at + ? <= ?)`
-    )
-    .bind(graceSeconds, now, graceSeconds, now)
-    .run();
-  return result.meta.changes ?? 0;
+  const result = await db.run(
+    `DELETE FROM addresses
+     WHERE (revoked = 1 AND COALESCE(revoked_at, expires_at) + ? <= ?)
+        OR (expires_at + ? <= ?)`,
+    graceSeconds,
+    now,
+    graceSeconds,
+    now
+  );
+  return result.changes;
 }
 
 // Rate-limit rows are keyed by (owner, action) so the table is bounded by
 // user count rather than traffic, but rows for users who stop using the bot
 // would otherwise persist forever. Anything whose window closed long ago is
 // inert — dropping it is equivalent to the row never having existed.
-export async function deleteStaleRateLimits(db: D1Database, olderThanSeconds: number): Promise<number> {
+export async function deleteStaleRateLimits(db: SqlExecutor, olderThanSeconds: number): Promise<number> {
   const cutoff = Math.floor(Date.now() / 1000) - olderThanSeconds;
-  const result = await db
-    .prepare(`DELETE FROM rate_limits WHERE window_start <= ?`)
-    .bind(cutoff)
-    .run();
-  return result.meta.changes ?? 0;
+  const result = await db.run(`DELETE FROM rate_limits WHERE window_start <= ?`, cutoff);
+  return result.changes;
 }

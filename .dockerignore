@@ -1,9 +1,9 @@
-node_modules/
-.wrangler/
-.dev.vars
-*.log
+node_modules
+.git
+.wrangler
 wrangler.toml
 .env
 *.db
 *.db-wal
 *.db-shm
+*.log

@@ -1,4 +1,4 @@
-import type { DeliveryResult, MailAdapter, OwnerRef, ParsedMail } from "./types";
+import type { DeliveryResult, MailAdapter, OwnerRef, ParsedMail } from "./types.ts";
 
 export interface Dispatcher {
   deliverMail(owner: OwnerRef, mail: ParsedMail): Promise<DeliveryResult>;

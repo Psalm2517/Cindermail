@@ -12,8 +12,11 @@ export interface SendMessagePayload {
 }
 
 class DiscordApiError extends Error {
-  constructor(public status: number, message: string) {
+  status: number;
+
+  constructor(status: number, message: string) {
     super(message);
+    this.status = status;
   }
 }
 

@@ -1,6 +1,6 @@
-import type { DeliveryResult, MailAdapter, OwnerRef, ParsedMail } from "../../core/types";
-import { createDM, DiscordApiError, sendMessage, type DiscordFile } from "./discord-rest";
-import { htmlToText } from "./html-to-text";
+import type { DeliveryResult, MailAdapter, OwnerRef, ParsedMail } from "../../core/types.ts";
+import { createDM, DiscordApiError, sendMessage, type DiscordFile } from "./discord-rest.ts";
+import { htmlToText } from "./html-to-text.ts";
 
 const DISCORD_MESSAGE_CAP = 2000;
 const INLINE_BODY_CAP = 1500;

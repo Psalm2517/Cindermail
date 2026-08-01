@@ -1,10 +1,12 @@
 import { verifyKey } from "discord-interactions";
-import { createDiscordAdapter } from "./adapters/discord";
-import { handleInteraction, type DiscordInteraction } from "./adapters/discord/interactions";
-import { deleteExpiredAndRevoked, deleteStaleRateLimits } from "./core/db";
-import { createDispatcher } from "./core/dispatch";
-import { handleInboundEmail } from "./core/email";
-import type { MailAdapter } from "./core/types";
+import { createDiscordAdapter } from "./adapters/discord/index.ts";
+import { buildCommandConfig } from "./adapters/discord/config.ts";
+import { handleInteraction, type DiscordInteraction } from "./adapters/discord/interactions.ts";
+import { deleteExpiredAndRevoked, deleteStaleRateLimits } from "./core/db.ts";
+import { createDispatcher } from "./core/dispatch.ts";
+import { handleInboundEmail } from "./core/email.ts";
+import type { MailAdapter } from "./core/types.ts";
+import { createD1Executor } from "./storage/d1.ts";
 
 export interface Env {
   DB: D1Database;
@@ -13,6 +15,9 @@ export interface Env {
   DISCORD_TOKEN: string;
   DISCORD_PUBLIC_KEY: string;
   DISCORD_APPLICATION_ID: string;
+  // Optional overrides for adapters/discord/config.ts defaults — see
+  // wrangler.toml.example and the README for the full list of accepted vars.
+  [key: string]: unknown;
 }
 
 const CLEANUP_GRACE_SECONDS = 24 * 60 * 60;
@@ -56,7 +61,9 @@ export default {
       }
 
       if (interaction.type === 2) {
-        const result = await handleInteraction(interaction, env.DB, env.DISPOSABLE_DOMAIN);
+        const db = createD1Executor(env.DB);
+        const config = buildCommandConfig(env as Record<string, string | undefined>);
+        const result = await handleInteraction(interaction, db, env.DISPOSABLE_DOMAIN, config);
         return Response.json(result);
       }
 
@@ -67,12 +74,14 @@ export default {
   },
 
   async email(message: ForwardableEmailMessage, env: Env): Promise<void> {
+    const db = createD1Executor(env.DB);
     const dispatcher = createDispatcher(buildAdapters(env));
-    await handleInboundEmail(message, env.DB, dispatcher);
+    await handleInboundEmail({ to: message.to, from: message.from, raw: message.raw }, db, dispatcher);
   },
 
   async scheduled(_event: ScheduledEvent, env: Env): Promise<void> {
-    await deleteExpiredAndRevoked(env.DB, CLEANUP_GRACE_SECONDS);
-    await deleteStaleRateLimits(env.DB, STALE_RATE_LIMIT_SECONDS);
+    const db = createD1Executor(env.DB);
+    await deleteExpiredAndRevoked(db, CLEANUP_GRACE_SECONDS);
+    await deleteStaleRateLimits(db, STALE_RATE_LIMIT_SECONDS);
   },
 };
