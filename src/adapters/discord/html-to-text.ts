@@ -32,14 +32,26 @@ const BLOCK_CLOSE_TAGS = /<\/(p|div|tr|table|li|h[1-6]|blockquote|section|articl
 const BREAK_TAGS = /<br\s*\/?>/gi;
 const ANCHOR_TAG = /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
 
+const IMG_ALT = /<img\b[^>]*\balt\s*=\s*["']([^"']*)["'][^>]*>/i;
+
 function replaceLinks(text: string): string {
   return text.replace(ANCHOR_TAG, (match, href: string, inner: string) => {
-    const label = inner.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    let label = inner.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (!label) {
+      // Image-only link (logo, tracking pixel, icon button) — fall back to alt
+      // text if meaningful, otherwise this link carries no useful information.
+      const altMatch = inner.match(IMG_ALT);
+      label = altMatch?.[1]?.trim() ?? "";
+    }
+    if (!label) {
+      return "";
+    }
+
     const url = href.trim();
     if (!url || url.startsWith("#") || url.toLowerCase().startsWith("javascript:")) {
       return label;
     }
-    return label ? `${label} (${url})` : url;
+    return `${label} (${url})`;
   });
 }
 
