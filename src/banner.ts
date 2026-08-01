@@ -1,23 +1,24 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Small flame for terminal startup output. Shared across entrypoints now,
-// and ready to reuse for a CLI later without redrawing it.
+// Small pixel-art flame for terminal startup output, solid color blocks
+// rather than punctuation line-art, matching how a terminal mascot usually
+// reads at this size. Shared across entrypoints, ready to reuse for a CLI
+// later without redrawing it.
 const ESC = String.fromCharCode(27);
 const YELLOW = `${ESC}[38;5;226m`;
 const ORANGE = `${ESC}[38;5;208m`;
 const RED = `${ESC}[38;5;196m`;
-const DARK_RED = `${ESC}[38;5;160m`;
 const RESET = `${ESC}[0m`;
 
 const FLAME_LINES: [string, string][] = [
-  [YELLOW, "     ."],
-  [YELLOW, "    (@)"],
-  [ORANGE, "   (@@@)"],
-  [ORANGE, "  (@@@@@)"],
-  [RED, "   (@@@)"],
-  [RED, "    (@)"],
-  [DARK_RED, "     `"],
+  [YELLOW, "   ▄▄   "],
+  [YELLOW, "  ████  "],
+  [ORANGE, " ██████ "],
+  [ORANGE, " ██████ "],
+  [RED, "████████"],
+  [RED, "████████"],
+  [RED, "████████"],
 ];
 
 // Respects the NO_COLOR convention (https://no-color.org) and only colors
