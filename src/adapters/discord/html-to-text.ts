@@ -1,0 +1,51 @@
+const ENTITIES: Record<string, string> = {
+  nbsp: " ",
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  "#39": "'",
+  rsquo: "’",
+  lsquo: "‘",
+  rdquo: "”",
+  ldquo: "“",
+  mdash: "—",
+  ndash: "–",
+  hellip: "…",
+  copy: "©",
+  reg: "®",
+  trade: "™",
+};
+
+function decodeEntities(text: string): string {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z0-9]+);/gi, (match, entity: string) => {
+    if (entity[0] === "#") {
+      const code = entity[1] === "x" || entity[1] === "X" ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : match;
+    }
+    return ENTITIES[entity.toLowerCase()] ?? match;
+  });
+}
+
+const BLOCK_CLOSE_TAGS = /<\/(p|div|tr|table|li|h[1-6]|blockquote|section|article|header|footer)>/gi;
+const BREAK_TAGS = /<br\s*\/?>/gi;
+
+export function htmlToText(html: string): string {
+  let text = html
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, "")
+    .replace(BREAK_TAGS, "\n")
+    .replace(BLOCK_CLOSE_TAGS, "\n")
+    .replace(/<[^>]+>/g, "");
+
+  text = decodeEntities(text);
+
+  return text
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trim())
+    .filter((line, i, lines) => line.length > 0 || (i > 0 && (lines[i - 1]?.length ?? 0) > 0))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

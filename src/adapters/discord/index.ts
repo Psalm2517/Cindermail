@@ -1,5 +1,6 @@
 import type { DeliveryResult, MailAdapter, OwnerRef, ParsedMail } from "../../core/types";
 import { createDM, DiscordApiError, sendMessage, type DiscordFile } from "./discord-rest";
+import { htmlToText } from "./html-to-text";
 
 const DISCORD_MESSAGE_CAP = 2000;
 const INLINE_BODY_CAP = 1500;
@@ -15,26 +16,22 @@ export function createDiscordAdapter(botToken: string): MailAdapter {
         const header = `**From:** ${mail.from}\n**Subject:** ${mail.subject}\n`;
         const files: DiscordFile[] = [];
 
-        const useFullBodyFile = Boolean(mail.html) || mail.text.length > INLINE_BODY_CAP;
-        let bodyText = mail.text;
+        // The text/plain part (if any) is not trustworthy on its own — some senders
+        // populate it with raw HTML or other markup instead of real plain text. When
+        // an HTML part exists, always derive the readable body from it directly.
+        const readableText = mail.html ? htmlToText(mail.html) : mail.text;
+        let bodyText = readableText;
 
-        if (mail.html) {
-          // The text/plain part (if any) is not trustworthy as a preview here — some
-          // senders populate it with raw HTML or other markup instead of real plain text.
-          bodyText = "(HTML email — full message attached)";
-          files.push({
-            filename: "message.html",
-            contentType: "text/html; charset=utf-8",
-            content: new TextEncoder().encode(mail.html).buffer as ArrayBuffer,
-          });
-        } else if (useFullBodyFile) {
-          const preview = mail.text.slice(0, INLINE_BODY_CAP);
-          bodyText = `${preview}${mail.text.length > INLINE_BODY_CAP ? "…" : ""}\n\n(full message attached)`;
+        if (readableText.length > INLINE_BODY_CAP) {
+          const preview = readableText.slice(0, INLINE_BODY_CAP);
+          bodyText = `${preview}…\n\n(full message attached)`;
           files.push({
             filename: "message.txt",
             contentType: "text/plain; charset=utf-8",
-            content: new TextEncoder().encode(mail.text).buffer as ArrayBuffer,
+            content: new TextEncoder().encode(readableText).buffer as ArrayBuffer,
           });
+        } else if (readableText.length === 0) {
+          bodyText = "(no readable content)";
         }
 
         let content = `${header}\n${bodyText}`;
