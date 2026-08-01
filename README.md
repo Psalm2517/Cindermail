@@ -12,7 +12,7 @@
 
 ---
 
-Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets sent to it is parsed, cleaned up, and delivered to Discord. Torch it when you're done.
+Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets sent to it is parsed, cleaned up, and delivered to you. Torch it when you're done.
 
 <!-- ![Example delivery](docs/images/example-dm.png) -->
 
@@ -32,18 +32,16 @@ Pick one from each list.
 - **[mail.tm](docs/deploy-mailtm.md)**: no domain or server at all. Read the caveat in that guide first, mail.tm's domain is a known temp-mail domain and some signup forms block it.
 - **[Discord setup](docs/discord-adapter.md)**: same steps regardless of which of the above you picked. Commands (`/new` `/list` `/extend` `/torch`) are documented there.
 
-One hosting guide, plus the Discord guide.
+One hosting guide, plus delivery setup.
 
 ## How it works
 
 1. `/new` generates a random address and stores who owns it.
 2. You hand it out.
 3. Mail arrives. The receiver looks up the owner. Missing, expired, or torched: dropped, no bounce, nothing logged.
-4. Valid: the mail gets parsed (HTML to readable text, links intact, attachments forwarded) and sent to Discord.
+4. Valid: the mail gets parsed (HTML to readable text, links intact, attachments forwarded) and delivered.
 
 Daily cleanup clears expired/torched addresses and stale rate-limit rows, on every path.
-
-Delivery is always a DM, even if the bot's in a server and you ran `/new` in a channel there. Nothing posts anywhere public.
 
 ## Architecture
 
@@ -73,7 +71,7 @@ src/receivers/mailtm/  mail.tm entrypoint (API client, poller instead of
 ## Limits
 
 - 5 active addresses per owner, 10 day expiry. Both configurable.
-- DM bodies cap at 1500 characters inline, longer gets attached as `message.txt`.
+- Message bodies cap at 1500 characters inline, longer gets attached as `message.txt`.
 - Inbound HTML caps at 256KB before parsing (parsing cost scales quadratically with input, and addresses are reachable by anyone who learns one).
 - Attachments forward individually up to 25MB combined per email. Over budget gets dropped with a note, not the whole batch.
 
