@@ -8,19 +8,21 @@ import { fileURLToPath } from "node:url";
 const ESC = String.fromCharCode(27);
 const RESET = `${ESC}[0m`;
 
-// A small flame with a face, the mascot for terminal startup output.
+// Small flame mascot for terminal startup output.
 const HOT = "#FFE066";
 const MID = "#FF8C1A";
-const EYE = "#2A1204";
+const EDGE = "#E8380D";
 
-type Cell = null | typeof HOT | typeof MID | typeof EYE;
+type Cell = null | typeof HOT | typeof MID | typeof EDGE;
 
 const GRID: Cell[][] = [
   [null, null, null, HOT, null, null, null],
   [null, null, HOT, HOT, HOT, null, null],
-  [null, MID, EYE, MID, EYE, MID, null],
+  [null, MID, MID, HOT, MID, null, null],
   [null, MID, MID, MID, MID, MID, null],
-  [null, null, MID, MID, MID, null, null],
+  [EDGE, MID, MID, MID, MID, MID, EDGE],
+  [EDGE, EDGE, MID, MID, MID, EDGE, EDGE],
+  [null, EDGE, EDGE, EDGE, EDGE, EDGE, null],
 ];
 
 function hexToRgb(hex: string): [number, number, number] {
