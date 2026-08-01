@@ -39,7 +39,23 @@ const ANCHOR_TAG = /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/
 const HIDDEN_ELEMENT =
   /<(span|div|td|p)\b(?=[^>]*\b(?:class\s*=\s*["'][^"']*(?:sr-only|screen-?reader|visually-?hidden|assistive)[^"']*["']|style\s*=\s*["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0)[^"']*["']))[^>]*>[\s\S]*?<\/\1>/gi;
 
-function replaceLinks(text: string): string {
+export type LinkFormat = "plain" | "markdown";
+
+// Placeholders standing in for the <> a markdown link's URL gets wrapped in
+// (to suppress Discord's separate link-preview embed while keeping the
+// masked link clickable). The generic tag-stripping pass later in the
+// pipeline would otherwise mistake a literal "<url>" for an HTML tag and
+// delete it, so real angle brackets are swapped in only as the final step.
+const ANGLE_OPEN = "";
+const ANGLE_CLOSE = "";
+
+function formatLink(label: string, url: string, format: LinkFormat): string {
+  return format === "markdown" ? `[${label}](${ANGLE_OPEN}${url}${ANGLE_CLOSE})` : `${label} (${url})`;
+}
+
+function replaceLinks(text: string, format: LinkFormat): string {
+  const seenUrls = new Set<string>();
+
   return text.replace(ANCHOR_TAG, (match, href: string, inner: string) => {
     // Image-only links (logos, social icons, app-store badges, tracking pixels)
     // carry no readable content — alt text is for accessibility, not a summary,
@@ -54,17 +70,25 @@ function replaceLinks(text: string): string {
     if (!url || url.startsWith("#") || url.toLowerCase().startsWith("javascript:")) {
       return label;
     }
-    return `${label} (${url})`;
+
+    // Same destination linked more than once (e.g. a logo and a text CTA
+    // pointing at the same tracking URL) — keep the first occurrence only.
+    if (seenUrls.has(url)) {
+      return label;
+    }
+    seenUrls.add(url);
+
+    return formatLink(label, url, format);
   });
 }
 
-export function htmlToText(html: string): string {
+export function htmlToText(html: string, format: LinkFormat = "plain"): string {
   let text = html
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, "")
     .replace(HIDDEN_ELEMENT, "");
 
-  text = replaceLinks(text);
+  text = replaceLinks(text, format);
 
   text = text
     .replace(BREAK_TAGS, "\n")
@@ -72,6 +96,8 @@ export function htmlToText(html: string): string {
     .replace(/<[^>]+>/g, "");
 
   text = decodeEntities(text);
+
+  text = text.split(ANGLE_OPEN).join("<").split(ANGLE_CLOSE).join(">");
 
   return text
     .split("\n")

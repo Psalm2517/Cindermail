@@ -21,6 +21,7 @@ export async function handleInboundEmail(
   const parsed = await PostalMime.parse(message.raw, { attachmentEncoding: "arraybuffer" });
   const mail: ParsedMail = {
     from: parsed.from?.address ?? message.from,
+    to: row.address,
     subject: parsed.subject ?? "(no subject)",
     text: parsed.text ?? "",
     html: parsed.html,
