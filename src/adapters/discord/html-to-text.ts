@@ -32,17 +32,13 @@ const BLOCK_CLOSE_TAGS = /<\/(p|div|tr|table|li|h[1-6]|blockquote|section|articl
 const BREAK_TAGS = /<br\s*\/?>/gi;
 const ANCHOR_TAG = /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
 
-const IMG_ALT = /<img\b[^>]*\balt\s*=\s*["']([^"']*)["'][^>]*>/i;
-
 function replaceLinks(text: string): string {
   return text.replace(ANCHOR_TAG, (match, href: string, inner: string) => {
-    let label = inner.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    if (!label) {
-      // Image-only link (logo, tracking pixel, icon button) — fall back to alt
-      // text if meaningful, otherwise this link carries no useful information.
-      const altMatch = inner.match(IMG_ALT);
-      label = altMatch?.[1]?.trim() ?? "";
-    }
+    // Image-only links (logos, social icons, app-store badges, tracking pixels)
+    // carry no readable content — alt text is for accessibility, not a summary,
+    // and surfacing it just clutters the message with decorative noise. Only
+    // links with real anchor text are kept.
+    const label = inner.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     if (!label) {
       return "";
     }
