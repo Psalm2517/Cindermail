@@ -16,6 +16,16 @@ const ENTITIES: Record<string, string> = {
   copy: "©",
   reg: "®",
   trade: "™",
+  // Same invisible-preheader-padding characters INVISIBLE_CHARS strips, but
+  // some senders write them as named entities instead of raw bytes. Without
+  // these mapped, decodeEntities falls through to returning the entity text
+  // unchanged (there's no "shy"/"zwnj" case to match), so they'd survive as
+  // literal "&shy;"/"&zwnj;" garbage instead of becoming strippable.
+  shy: "\u00AD",
+  zwnj: "\u200C",
+  zwj: "\u200D",
+  lrm: "\u200E",
+  rlm: "\u200F",
 };
 
 function decodeEntities(text: string): string {
@@ -100,7 +110,6 @@ function replaceLinks(text: string): string {
 
 export function htmlToText(html: string): string {
   let text = html
-    .replace(INVISIBLE_CHARS, "")
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, "")
     .replace(HIDDEN_ELEMENT_CANDIDATE, (match) => (match.length <= HIDDEN_ELEMENT_MAX_LENGTH ? "" : match));
@@ -112,7 +121,12 @@ export function htmlToText(html: string): string {
     .replace(BLOCK_CLOSE_TAGS, "\n")
     .replace(/<[^>]+>/g, "");
 
+  // Entity decoding runs before the invisible-char strip, not after: some
+  // senders write this padding as named entities (&shy; &zwnj;) rather than
+  // raw bytes, and those only become real (strippable) characters once
+  // decoded. Stripping first would miss them entirely.
   text = decodeEntities(text);
+  text = text.replace(INVISIBLE_CHARS, "");
 
   text = text.split(ANGLE_OPEN).join("<").split(ANGLE_CLOSE).join(">");
 
