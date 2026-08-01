@@ -2,10 +2,10 @@ import { verifyKey } from "discord-interactions";
 import { createDiscordAdapter } from "./adapters/discord/index.ts";
 import { buildCommandConfig } from "./adapters/discord/config.ts";
 import { handleInteraction, type DiscordInteraction } from "./adapters/discord/interactions.ts";
-import { deleteExpiredAndRevoked, deleteStaleRateLimits } from "./core/db.ts";
+import { createAddress, deleteExpiredAndRevoked, deleteStaleRateLimits } from "./core/db.ts";
 import { createDispatcher } from "./core/dispatch.ts";
 import { handleInboundEmail } from "./core/email.ts";
-import type { MailAdapter } from "./core/types.ts";
+import type { MailAdapter, OwnerRef } from "./core/types.ts";
 import { createD1Executor } from "./storage/d1.ts";
 
 export interface Env {
@@ -63,7 +63,9 @@ export default {
       if (interaction.type === 2) {
         const db = createD1Executor(env.DB);
         const config = buildCommandConfig(env as Record<string, string | undefined>);
-        const result = await handleInteraction(interaction, db, env.DISPOSABLE_DOMAIN, config);
+        const createAddressFn = (executor: ReturnType<typeof createD1Executor>, owner: OwnerRef, ttl: number) =>
+          createAddress(executor, owner, env.DISPOSABLE_DOMAIN, ttl);
+        const result = await handleInteraction(interaction, db, createAddressFn, config);
         return Response.json(result);
       }
 

@@ -1,7 +1,7 @@
 {
   "name": "cinderbox",
   "version": "1.0.0",
-  "description": "A self-hosted disposable email service. Runs on Cloudflare Workers or your own server, delivers via a pluggable adapter (Discord ships built in).",
+  "description": "A self-hosted disposable email service. Runs on Cloudflare Workers, your own server, or mail.tm with no domain at all; delivers via a pluggable adapter (Discord ships built in).",
   "license": "MIT",
   "type": "module",
   "private": true,
@@ -12,15 +12,18 @@
     "cf:deploy": "wrangler deploy",
     "cf:db:init": "wrangler d1 execute cinderbox --remote --file=schema.sql",
     "cf:db:init:local": "wrangler d1 execute cinderbox --local --file=schema.sql",
-    "start": "node --experimental-strip-types src/node/index.ts"
+    "start": "node --experimental-strip-types src/node/index.ts",
+    "start:mailtm": "node --experimental-strip-types src/receivers/mailtm/run.ts"
   },
   "keywords": [
     "disposable-email",
     "temp-mail",
+    "burner-email",
     "email-routing",
     "discord-bot",
     "cloudflare-workers",
-    "self-hosted"
+    "self-hosted",
+    "mail.tm"
   ],
   "dependencies": {
     "better-sqlite3": "^13.0.2",

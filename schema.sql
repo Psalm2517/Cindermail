@@ -5,7 +5,13 @@ CREATE TABLE addresses (
   created_at INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
   revoked INTEGER NOT NULL DEFAULT 0,
-  revoked_at INTEGER
+  revoked_at INTEGER,
+  -- Opaque, receiver-specific data (JSON). NULL for addresses created on your
+  -- own domain (Cloudflare Email Routing, self-hosted SMTP). Set for
+  -- addresses provisioned through a third-party receiver like mail.tm, which
+  -- needs to remember a password to poll for mail and an account id to clean
+  -- up after itself. Core never reads or writes this column.
+  receiver_data TEXT
 );
 CREATE INDEX idx_addresses_owner ON addresses(owner_type, owner_id);
 

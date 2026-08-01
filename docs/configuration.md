@@ -4,7 +4,7 @@ Cloudflare deployments set these in `wrangler.toml` under `[vars]` for non-secre
 
 | Variable | Secret? | Default | What it does |
 |---|---|---|---|
-| `DISPOSABLE_DOMAIN` | no | required, no default | The domain addresses get generated on. |
+| `DISPOSABLE_DOMAIN` | no | required (Cloudflare and self-hosted only) | The domain addresses get generated on. Not used, and not needed, in mail.tm mode. |
 | `ADAPTERS` | no | `discord` | Comma separated list of enabled delivery adapters. |
 | `DISCORD_TOKEN` | yes | required, no default | Bot token. |
 | `DISCORD_PUBLIC_KEY` | yes | required, no default | Used to verify that interaction requests actually came from Discord. |
@@ -28,3 +28,11 @@ These have no Cloudflare equivalent. See `.env.example` for the full commented l
 | `SMTP_HOST` | `0.0.0.0` | Interface the SMTP server binds to. |
 | `HTTP_PORT` | `8787` | Port the interactions HTTP server listens on. Put a reverse proxy in front for HTTPS, see the self-host guide. |
 | `SQLITE_PATH` | `./cinderbox.db` | Where the SQLite database file lives. Gets created automatically if it doesn't exist. |
+
+## mail.tm mode only
+
+Also uses `HTTP_PORT`, `SQLITE_PATH`, and `ADAPTERS` from the table above. Does not use `DISPOSABLE_DOMAIN`, `SMTP_PORT`, or `SMTP_HOST` at all, there's no SMTP server in this mode.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `MAILTM_POLL_INTERVAL_SECONDS` | `15` | How often to check mail.tm for new mail on each active address. |

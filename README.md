@@ -20,20 +20,21 @@ Cindermail is built as two things bolted together, on purpose:
 1. **The core.** Handles address creation, expiry, rate limiting, and parsing incoming mail. It has no idea where the mail ends up or how it arrived. It's just plumbing.
 2. **Two pluggable pieces** that hang off that core:
    - A **delivery adapter** decides where parsed mail goes. Right now there's exactly one: Discord DMs. That's the only option today, not a permanent limitation, and it's why setting up Discord is a required step no matter how you run the rest of this.
-   - A **receiving/storage backend** decides how mail actually arrives and where address data lives. Two exist: Cloudflare (Email Routing + D1, nothing to host yourself) and self-hosted (a plain SMTP server + a SQLite file, runs on any machine you control).
+   - A **receiving/storage backend** decides how mail actually arrives and where address data lives. Three exist: Cloudflare (Email Routing + D1, nothing to host yourself), self-hosted (a plain SMTP server + a SQLite file, runs on any machine you control), and mail.tm (no domain or server at all, addresses live on mail.tm's own domain instead of one you own).
 
 So there are really two separate decisions to make, not one:
 
-- **Where does mail get received and stored?** Cloudflare, or your own server. Pick one.
+- **Where does mail get received and stored?** Cloudflare, your own server, or mail.tm. Pick one.
 - **Where does mail get delivered to you?** Discord, currently the only choice, so this part isn't really a decision yet.
 
 ## Setup guides
 
-Because those are two separate questions, the setup steps live in two separate documents instead of getting tangled together:
+Because those are two separate questions, the setup steps live in separate documents instead of getting tangled together:
 
 - **[Deploying on Cloudflare Workers](docs/deploy-cloudflare.md)**: no server to run yourself, Workers and D1 are free at this scale, you just need a Cloudflare account and a domain.
 - **[Self-hosting on your own server](docs/deploy-selfhost.md)**: no Cloudflare account needed at all, but you're responsible for a machine that can receive mail on port 25 and stays running.
-- **[Setting up the Discord adapter](docs/discord-adapter.md)**: the same steps regardless of which of the two above you picked. Do this one either way, since it's currently the only way mail actually reaches you.
+- **[Using mail.tm instead of your own domain](docs/deploy-mailtm.md)**: the lowest-setup option, no domain or server required at all, but read the caveat in that guide before picking it, mail.tm's domain is a recognizable public temp-mail domain that some signup forms block.
+- **[Setting up the Discord adapter](docs/discord-adapter.md)**: the same steps regardless of which of the above you picked. Do this one either way, since it's currently the only way mail actually reaches you.
 
 Do one hosting guide plus the Discord guide and you're running.
 
@@ -54,10 +55,10 @@ Addresses expire 7 days after creation (or after your last `/extend`) whether yo
 
 1. `/new` generates a random address and stores who owns it.
 2. You hand that address out somewhere.
-3. Mail arrives at your domain's catch-all. Whatever's receiving it (Cloudflare or your own SMTP server) hands it off to the core, which looks up the owner. If the address is missing, expired, or torched, the mail just gets dropped. No bounce, nothing logged.
+3. Mail arrives. Whatever's receiving it (Cloudflare's catch-all, your own SMTP server, or a poll against mail.tm) hands it off to the core, which looks up the owner. If the address is missing, expired, or torched, the mail just gets dropped. No bounce, nothing logged.
 4. If the address is valid, the parsed mail (HTML converted to readable text, links kept intact, attachments forwarded) goes out through whichever delivery adapter is enabled.
 
-A daily cleanup job clears out expired and torched addresses, plus old rate-limit rows, on both hosting paths.
+A daily cleanup job clears out expired and torched addresses, plus old rate-limit rows, on every hosting path.
 
 ## Architecture
 
@@ -77,6 +78,14 @@ src/worker.ts           Cloudflare entrypoint.
 src/node/               Self-hosted entrypoint: an SMTP server, a plain
                          HTTP server for the Discord webhook, and a cleanup
                          schedule that matches the Cloudflare cron timing.
+                         http-server.ts and cleanup-schedule.ts are shared
+                         with the mail.tm entrypoint below, since serving
+                         the webhook and running cleanup on a schedule
+                         don't depend on how mail is actually received.
+src/receivers/mailtm/  The mail.tm entrypoint: a client for their API, a
+                         poller instead of an SMTP server, and its own
+                         cleanup that deletes the account on their side
+                         before dropping the row here.
 ```
 
 ## Extending it

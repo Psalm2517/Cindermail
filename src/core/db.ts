@@ -13,17 +13,19 @@ const MAX_CREATE_ATTEMPTS = 5;
 // characters of the alphabet.
 const REJECTION_LIMIT = 256 - (256 % ALPHABET.length);
 
-function randomLocalPart(): string {
+// Exported since other receivers (mail.tm) need their own random strings
+// (a local part, an account password) with the same guarantee.
+export function randomAlphanumeric(length: number): string {
   let out = "";
-  while (out.length < LOCAL_PART_LENGTH) {
-    const bytes = new Uint8Array(LOCAL_PART_LENGTH);
+  while (out.length < length) {
+    const bytes = new Uint8Array(length);
     crypto.getRandomValues(bytes);
     for (const byte of bytes) {
       if (byte >= REJECTION_LIMIT) {
         continue;
       }
       out += ALPHABET[byte % ALPHABET.length];
-      if (out.length === LOCAL_PART_LENGTH) {
+      if (out.length === length) {
         break;
       }
     }
@@ -41,7 +43,7 @@ export async function createAddress(
   const expiresAt = now + ttlSeconds;
 
   for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
-    const address = `${randomLocalPart()}@${domain}`;
+    const address = `${randomAlphanumeric(LOCAL_PART_LENGTH)}@${domain}`;
     const result = await db.run(
       `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked)
        VALUES (?, ?, ?, ?, ?, 0)
@@ -61,6 +63,31 @@ export async function createAddress(
   throw new Error("failed to allocate a unique address after several attempts");
 }
 
+// For receivers that provision the address themselves (mail.tm calls their
+// API and gets an address back, rather than inventing a local part on a
+// domain we own) and just need it persisted. receiverData is opaque to core,
+// see schema.sql for what it's for.
+export async function registerAddress(
+  db: SqlExecutor,
+  address: string,
+  owner: OwnerRef,
+  ttlSeconds: number,
+  receiverData: string
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  const expiresAt = now + ttlSeconds;
+  await db.run(
+    `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked, receiver_data)
+     VALUES (?, ?, ?, ?, ?, 0, ?)`,
+    address,
+    owner.type,
+    owner.id,
+    now,
+    expiresAt,
+    receiverData
+  );
+}
+
 export async function getAddress(db: SqlExecutor, address: string): Promise<AddressRow | null> {
   return db.first<AddressRow>(`SELECT * FROM addresses WHERE address = ?`, address);
 }
@@ -73,6 +100,34 @@ export async function listActiveAddresses(db: SqlExecutor, owner: OwnerRef): Pro
      ORDER BY expires_at ASC`,
     owner.type,
     owner.id,
+    now
+  );
+}
+
+// Every active address that has receiver-specific data attached, regardless
+// of which receiver set it. Used by a receiver's own poller/cleanup to find
+// the rows it's responsible for; core has no idea what's inside the column,
+// callers filter by whatever shape they expect.
+export async function listActiveAddressesWithReceiverData(db: SqlExecutor): Promise<AddressRow[]> {
+  const now = Math.floor(Date.now() / 1000);
+  return db.all<AddressRow>(
+    `SELECT * FROM addresses WHERE receiver_data IS NOT NULL AND revoked = 0 AND expires_at > ?`,
+    now
+  );
+}
+
+// Same rows deleteExpiredAndRevoked would remove, but as a read. A receiver
+// that needs to clean up external state (mail.tm deleting the account on
+// its side) has to know which rows are about to go before they're gone.
+export async function listExpiredAndRevoked(db: SqlExecutor, graceSeconds: number): Promise<AddressRow[]> {
+  const now = Math.floor(Date.now() / 1000);
+  return db.all<AddressRow>(
+    `SELECT * FROM addresses
+     WHERE (revoked = 1 AND COALESCE(revoked_at, expires_at) + ? <= ?)
+        OR (expires_at + ? <= ?)`,
+    graceSeconds,
+    now,
+    graceSeconds,
     now
   );
 }

@@ -1,10 +1,4 @@
-import {
-  countActiveAddresses,
-  createAddress,
-  extendAddress,
-  listActiveAddresses,
-  revokeAddress,
-} from "../../core/db.ts";
+import { countActiveAddresses, extendAddress, listActiveAddresses, revokeAddress } from "../../core/db.ts";
 import { checkAndIncrement } from "../../core/ratelimit.ts";
 import type { SqlExecutor } from "../../core/storage.ts";
 import type { OwnerRef } from "../../core/types.ts";
@@ -13,6 +7,13 @@ import type { CommandConfig } from "./config.ts";
 const EPHEMERAL = 64;
 
 const RATE_LIMIT_MESSAGE = "Slow down a moment, then try again.";
+
+// How a new address actually gets created differs by receiver: Cloudflare
+// and self-hosted SMTP invent a random local part on a domain you own,
+// mail.tm calls an external API and gets an address back. Injecting this
+// keeps command handling identical across every receiver instead of each
+// one needing its own copy of /new, /list, /extend, /torch.
+export type CreateAddressFn = (db: SqlExecutor, owner: OwnerRef, ttlSeconds: number) => Promise<string>;
 
 interface DiscordInteractionOption {
   name: string;
@@ -47,7 +48,7 @@ function getOption(interaction: DiscordInteraction, name: string): string | unde
 export async function handleInteraction(
   interaction: DiscordInteraction,
   db: SqlExecutor,
-  domain: string,
+  createAddressFn: CreateAddressFn,
   config: CommandConfig
 ) {
   const userId = getInvokingUserId(interaction);
@@ -74,7 +75,7 @@ export async function handleInteraction(
 
   switch (commandName) {
     case "new":
-      return handleNew(db, owner, domain, config);
+      return handleNew(db, owner, createAddressFn, config);
     case "list":
       return handleList(db, owner);
     case "extend":
@@ -86,7 +87,7 @@ export async function handleInteraction(
   }
 }
 
-async function handleNew(db: SqlExecutor, owner: OwnerRef, domain: string, config: CommandConfig) {
+async function handleNew(db: SqlExecutor, owner: OwnerRef, createAddressFn: CreateAddressFn, config: CommandConfig) {
   const activeCount = await countActiveAddresses(db, owner);
   if (activeCount >= config.maxActiveAddresses) {
     return ephemeralReply(
@@ -94,7 +95,7 @@ async function handleNew(db: SqlExecutor, owner: OwnerRef, domain: string, confi
     );
   }
 
-  const address = await createAddress(db, owner, domain, config.addressTtlSeconds);
+  const address = await createAddressFn(db, owner, config.addressTtlSeconds);
   const days = Math.round(config.addressTtlSeconds / 86400);
   return ephemeralReply(`Your new disposable address: \`${address}\`\nExpires in ${days} day${days === 1 ? "" : "s"}.`);
 }
