@@ -4,6 +4,7 @@
 
 **A disposable email service you run yourself. Give out addresses on your own domain, get the mail delivered somewhere you actually check.**
 
+[![CI](https://github.com/Psalm2517/Cindermail/actions/workflows/ci.yml/badge.svg)](https://github.com/Psalm2517/Cindermail/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 
@@ -59,6 +60,8 @@ Addresses expire 7 days after creation (or after your last `/extend`) whether yo
 4. If the address is valid, the parsed mail (HTML converted to readable text, links kept intact, attachments forwarded) goes out through whichever delivery adapter is enabled.
 
 A daily cleanup job clears out expired and torched addresses, plus old rate-limit rows, on every hosting path.
+
+Everything happens in DMs. Commands can be run wherever the bot is installed, a server channel or straight in DMs, but delivery never posts anywhere public. Mail only ever lands in the DM of whoever owns the address.
 
 ## Architecture
 

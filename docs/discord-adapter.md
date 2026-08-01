@@ -54,3 +54,5 @@ Discord verifies this by sending a signed ping the moment you save it. If that f
 The bot works installed to a server, or installed to just your own account for DM only use, both are enabled by default by `register-commands.ts`. Grab an install link from the Installation tab in the Developer Portal.
 
 Run `/new` somewhere you have the bot. You should get an ephemeral reply with a fresh address. Send that address a test email and you should get a DM back within a few seconds.
+
+Mail always arrives as a DM, even if you installed the bot to a server and ran `/new` in a channel there. The commands can be run wherever the bot is available, but delivery never posts anywhere public, it only ever goes to the DM of whoever owns the address.
