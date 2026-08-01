@@ -60,8 +60,8 @@ export async function handleInteraction(interaction: DiscordInteraction, db: D1D
       return handleList(db, owner);
     case "extend":
       return handleExtend(db, owner, getOption(interaction, "address"));
-    case "revoke":
-      return handleRevoke(db, owner, getOption(interaction, "address"));
+    case "torch":
+      return handleTorch(db, owner, getOption(interaction, "address"));
     default:
       return ephemeralReply("Unknown command.");
   }
@@ -109,7 +109,7 @@ async function handleExtend(db: D1Database, owner: OwnerRef, address: string | u
   return ephemeralReply(`Extended \`${address}\` by 7 days.`);
 }
 
-async function handleRevoke(db: D1Database, owner: OwnerRef, address: string | undefined) {
+async function handleTorch(db: D1Database, owner: OwnerRef, address: string | undefined) {
   if (!address) {
     return ephemeralReply("Missing address.");
   }
@@ -117,5 +117,5 @@ async function handleRevoke(db: D1Database, owner: OwnerRef, address: string | u
   if (!updated) {
     return ephemeralReply("Not found or not yours.");
   }
-  return ephemeralReply(`Revoked \`${address}\`.`);
+  return ephemeralReply(`Torched \`${address}\`.`);
 }

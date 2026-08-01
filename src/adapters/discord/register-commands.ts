@@ -40,15 +40,15 @@ const commands = [
     ],
   },
   {
-    name: "revoke",
-    description: "Revoke a disposable email address",
+    name: "torch",
+    description: "Torch (revoke) a disposable email address",
     integration_types: GUILD_AND_USER_INSTALL,
     contexts: ALL_CONTEXTS,
     options: [
       {
         type: 3,
         name: "address",
-        description: "The address to revoke",
+        description: "The address to torch",
         required: true,
       },
     ],
