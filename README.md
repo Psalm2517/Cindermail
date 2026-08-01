@@ -1,6 +1,6 @@
 <div align="center">
 
-# Cindermail
+# Cindermail 🔥
 
 **A disposable email service you run yourself. Give out addresses on your own domain, get the mail delivered somewhere you actually check.**
 
