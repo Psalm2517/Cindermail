@@ -30,11 +30,27 @@ function decodeEntities(text: string): string {
 
 const BLOCK_CLOSE_TAGS = /<\/(p|div|tr|table|li|h[1-6]|blockquote|section|article|header|footer)>/gi;
 const BREAK_TAGS = /<br\s*\/?>/gi;
+const ANCHOR_TAG = /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+
+function replaceLinks(text: string): string {
+  return text.replace(ANCHOR_TAG, (match, href: string, inner: string) => {
+    const label = inner.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const url = href.trim();
+    if (!url || url.startsWith("#") || url.toLowerCase().startsWith("javascript:")) {
+      return label;
+    }
+    return label ? `${label} (${url})` : url;
+  });
+}
 
 export function htmlToText(html: string): string {
   let text = html
     .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, "");
+
+  text = replaceLinks(text);
+
+  text = text
     .replace(BREAK_TAGS, "\n")
     .replace(BLOCK_CLOSE_TAGS, "\n")
     .replace(/<[^>]+>/g, "");
