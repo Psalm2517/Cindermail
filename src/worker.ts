@@ -1,7 +1,7 @@
 import { verifyKey } from "discord-interactions";
 import { createDiscordAdapter } from "./adapters/discord";
-import { handleInteraction } from "./adapters/discord/interactions";
-import { deleteExpiredAndRevoked } from "./core/db";
+import { handleInteraction, type DiscordInteraction } from "./adapters/discord/interactions";
+import { deleteExpiredAndRevoked, deleteStaleRateLimits } from "./core/db";
 import { createDispatcher } from "./core/dispatch";
 import { handleInboundEmail } from "./core/email";
 import type { MailAdapter } from "./core/types";
@@ -16,6 +16,7 @@ export interface Env {
 }
 
 const CLEANUP_GRACE_SECONDS = 24 * 60 * 60;
+const STALE_RATE_LIMIT_SECONDS = 30 * 24 * 60 * 60;
 
 function buildAdapters(env: Env): MailAdapter[] {
   const enabled = env.ADAPTERS.split(",").map((s) => s.trim());
@@ -43,7 +44,12 @@ export default {
         return new Response("invalid request signature", { status: 401 });
       }
 
-      const interaction = JSON.parse(rawBody);
+      let interaction: DiscordInteraction;
+      try {
+        interaction = JSON.parse(rawBody) as DiscordInteraction;
+      } catch {
+        return new Response("malformed interaction payload", { status: 400 });
+      }
 
       if (interaction.type === 1) {
         return Response.json({ type: 1 });
@@ -67,5 +73,6 @@ export default {
 
   async scheduled(_event: ScheduledEvent, env: Env): Promise<void> {
     await deleteExpiredAndRevoked(env.DB, CLEANUP_GRACE_SECONDS);
+    await deleteStaleRateLimits(env.DB, STALE_RATE_LIMIT_SECONDS);
   },
 };

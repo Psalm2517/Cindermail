@@ -28,12 +28,19 @@ function decodeEntities(text: string): string {
   });
 }
 
-// Invisible formatting characters (zero-width joiners/non-joiners, word
-// joiner, soft hyphen, combining grapheme joiner, BOM) — ESPs commonly pad
-// a hidden preheader with hundreds of these to control the inbox preview
-// snippet. They render as nothing but count as real characters, so left
-// alone they silently eat into the inline-preview length budget.
-const INVISIBLE_CHARS = /[​-‏‪-‮⁠﻿­͏]/g;
+// Invisible formatting characters — ESPs commonly pad a hidden preheader
+// with hundreds of these to control the inbox preview snippet. They render
+// as nothing but count as real characters, so left alone they silently eat
+// into the inline-preview length budget.
+//
+// Written as \u escapes on purpose: as literal characters these are
+// invisible in an editor and in code review, and any tool that "cleans up"
+// invisible characters would silently gut this class.
+//   U+00AD soft hyphen              U+034F combining grapheme joiner
+//   U+200B-U+200F zero-width + directional marks
+//   U+202A-U+202E bidi embedding/override
+//   U+2060 word joiner              U+FEFF zero-width no-break space (BOM)
+const INVISIBLE_CHARS = /[\u00AD\u034F\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g;
 
 const BLOCK_CLOSE_TAGS = /<\/(p|div|tr|table|li|h[1-6]|blockquote|section|article|header|footer)>/gi;
 const BREAK_TAGS = /<br\s*\/?>/gi;
@@ -59,8 +66,8 @@ const HIDDEN_ELEMENT_MAX_LENGTH = 300;
 // tag-stripping pass later in the pipeline would otherwise mistake a
 // literal "<url>" for an HTML tag and delete it, so real angle brackets are
 // swapped in only as the final step, once no more tag-stripping will run.
-const ANGLE_OPEN = "";
-const ANGLE_CLOSE = "";
+const ANGLE_OPEN = "\uE000";
+const ANGLE_CLOSE = "\uE001";
 
 function replaceLinks(text: string): string {
   const seenUrls = new Set<string>();

@@ -10,8 +10,16 @@ import type { OwnerRef } from "../../core/types";
 
 const SEVEN_DAYS_SECONDS = 7 * 24 * 60 * 60;
 const MAX_ACTIVE_ADDRESSES = 5;
-const NEW_RATE_LIMIT_WINDOW_SECONDS = 30;
-const NEW_RATE_LIMIT_MAX = 1;
+
+// Every command costs D1 reads/writes, so all of them are limited, not just
+// the one that creates rows. /new stays deliberately strict; the rest are
+// loose enough that ordinary use never notices while still bounding abuse.
+const RATE_LIMITS: Record<string, { windowSeconds: number; maxCount: number; message: string }> = {
+  new: { windowSeconds: 30, maxCount: 1, message: "You're creating addresses too quickly. Try again in a bit." },
+  list: { windowSeconds: 60, maxCount: 15, message: "Slow down a moment, then try again." },
+  extend: { windowSeconds: 60, maxCount: 15, message: "Slow down a moment, then try again." },
+  torch: { windowSeconds: 60, maxCount: 15, message: "Slow down a moment, then try again." },
+};
 
 const EPHEMERAL = 64;
 
@@ -20,7 +28,7 @@ interface DiscordInteractionOption {
   value?: string;
 }
 
-interface DiscordInteraction {
+export interface DiscordInteraction {
   type: number;
   member?: { user?: { id: string } };
   user?: { id: string };
@@ -53,6 +61,21 @@ export async function handleInteraction(interaction: DiscordInteraction, db: D1D
   const owner: OwnerRef = { type: "discord", id: userId };
   const commandName = interaction.data?.name;
 
+  const limit = commandName ? RATE_LIMITS[commandName] : undefined;
+  if (limit) {
+    const allowed = await checkAndIncrement(
+      db,
+      owner.type,
+      owner.id,
+      commandName as string,
+      limit.windowSeconds,
+      limit.maxCount
+    );
+    if (!allowed) {
+      return ephemeralReply(limit.message);
+    }
+  }
+
   switch (commandName) {
     case "new":
       return handleNew(db, owner, domain);
@@ -68,21 +91,11 @@ export async function handleInteraction(interaction: DiscordInteraction, db: D1D
 }
 
 async function handleNew(db: D1Database, owner: OwnerRef, domain: string) {
-  const allowed = await checkAndIncrement(
-    db,
-    owner.type,
-    owner.id,
-    "new",
-    NEW_RATE_LIMIT_WINDOW_SECONDS,
-    NEW_RATE_LIMIT_MAX
-  );
-  if (!allowed) {
-    return ephemeralReply("You're creating addresses too quickly. Try again in a bit.");
-  }
-
   const activeCount = await countActiveAddresses(db, owner);
   if (activeCount >= MAX_ACTIVE_ADDRESSES) {
-    return ephemeralReply(`You already have ${MAX_ACTIVE_ADDRESSES} active addresses. Revoke one before creating another.`);
+    return ephemeralReply(
+      `You already have ${MAX_ACTIVE_ADDRESSES} active addresses. Torch one before creating another.`
+    );
   }
 
   const address = await createAddress(db, owner, domain, SEVEN_DAYS_SECONDS);

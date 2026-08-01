@@ -33,5 +33,15 @@ export async function handleInboundEmail(
     })),
   };
 
-  await dispatcher.deliverMail(owner, mail);
+  const result = await dispatcher.deliverMail(owner, mail);
+
+  // A failed delivery (most often the recipient having DMs closed) must not
+  // throw — the mail is already accepted at this point and retrying would
+  // just redeliver. But failing silently makes it impossible to tell a
+  // broken adapter from an empty inbox, so record that it happened. Only the
+  // adapter type and error are logged: never message content, addresses, or
+  // owner ids.
+  if (!result.success) {
+    console.warn(`delivery failed via adapter "${owner.type}": ${result.error ?? "unknown error"}`);
+  }
 }

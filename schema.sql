@@ -4,7 +4,8 @@ CREATE TABLE addresses (
   owner_id TEXT NOT NULL,
   created_at INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
-  revoked INTEGER NOT NULL DEFAULT 0
+  revoked INTEGER NOT NULL DEFAULT 0,
+  revoked_at INTEGER
 );
 CREATE INDEX idx_addresses_owner ON addresses(owner_type, owner_id);
 
