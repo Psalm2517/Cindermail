@@ -16,13 +16,11 @@ const EDGE = "#E8380D";
 type Cell = null | typeof HOT | typeof MID | typeof EDGE;
 
 const GRID: Cell[][] = [
-  [null, null, null, HOT, null, null, null],
-  [null, null, HOT, HOT, HOT, null, null],
-  [null, MID, MID, HOT, MID, null, null],
-  [null, MID, MID, MID, MID, MID, null],
-  [EDGE, MID, MID, MID, MID, MID, EDGE],
-  [EDGE, EDGE, MID, MID, MID, EDGE, EDGE],
-  [null, EDGE, EDGE, EDGE, EDGE, EDGE, null],
+  [null, null, HOT, null, null],
+  [null, MID, HOT, MID, null],
+  [MID, MID, MID, MID, MID],
+  [EDGE, MID, MID, MID, EDGE],
+  [null, EDGE, EDGE, EDGE, null],
 ];
 
 function hexToRgb(hex: string): [number, number, number] {
