@@ -2,7 +2,7 @@
 
 # Cindermail 🔥
 
-**A disposable email service you run yourself. Give out addresses on your own domain, get the mail delivered somewhere you actually check.**
+**Disposable email delivered to chat, not another inbox to check.**
 
 [![CI](https://github.com/Psalm2517/Cindermail/actions/workflows/ci.yml/badge.svg)](https://github.com/Psalm2517/Cindermail/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -12,97 +12,70 @@
 
 ---
 
-Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Anything sent to it gets parsed, cleaned up, and delivered to you. No inbox to check, no account to log into. When you're done with it, torch it.
+Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets sent to it is parsed, cleaned up, and delivered to Discord. Torch it when you're done.
 
-## What's actually going on here
+<!-- ![Example delivery](docs/images/example-dm.png) -->
 
-Cindermail is built as two things bolted together, on purpose:
+## Two moving parts
 
-1. **The core.** Handles address creation, expiry, rate limiting, and parsing incoming mail. It has no idea where the mail ends up or how it arrived. It's just plumbing.
-2. **Two pluggable pieces** that hang off that core:
-   - A **delivery adapter** decides where parsed mail goes. Right now there's exactly one: Discord DMs. That's the only option today, not a permanent limitation, and it's why setting up Discord is a required step no matter how you run the rest of this.
-   - A **receiving/storage backend** decides how mail actually arrives and where address data lives. Three exist: Cloudflare (Email Routing + D1, nothing to host yourself), self-hosted (a plain SMTP server + a SQLite file, runs on any machine you control), and mail.tm (no domain or server at all, addresses live on mail.tm's own domain instead of one you own).
+A core that generates addresses, tracks who owns them, parses incoming mail, and doesn't care where any of it came from or where it's going. Two things plug into it:
 
-So there are really two separate decisions to make, not one:
+- **Where mail comes from.** Cloudflare (Email Routing + D1), your own server (SMTP + SQLite), or mail.tm (no domain, no server).
+- **Where mail goes.** Discord.
 
-- **Where does mail get received and stored?** Cloudflare, your own server, or mail.tm. Pick one.
-- **Where does mail get delivered to you?** Discord, currently the only choice, so this part isn't really a decision yet.
+Pick one from each list.
 
 ## Setup guides
 
-Because those are two separate questions, the setup steps live in separate documents instead of getting tangled together:
+- **[Cloudflare Workers](docs/deploy-cloudflare.md)**: no server to run, just a Cloudflare account and a domain.
+- **[Self-hosted](docs/deploy-selfhost.md)**: your own machine, your own domain, your own uptime.
+- **[mail.tm](docs/deploy-mailtm.md)**: no domain or server at all. Read the caveat in that guide first, mail.tm's domain is a known temp-mail domain and some signup forms block it.
+- **[Discord setup](docs/discord-adapter.md)**: same steps regardless of which of the above you picked. Commands (`/new` `/list` `/extend` `/torch`) are documented there.
 
-- **[Deploying on Cloudflare Workers](docs/deploy-cloudflare.md)**: no server to run yourself, Workers and D1 are free at this scale, you just need a Cloudflare account and a domain.
-- **[Self-hosting on your own server](docs/deploy-selfhost.md)**: no Cloudflare account needed at all, but you're responsible for a machine that can receive mail on port 25 and stays running.
-- **[Using mail.tm instead of your own domain](docs/deploy-mailtm.md)**: the lowest-setup option, no domain or server required at all, but read the caveat in that guide before picking it, mail.tm's domain is a recognizable public temp-mail domain that some signup forms block.
-- **[Setting up the Discord adapter](docs/discord-adapter.md)**: the same steps regardless of which of the above you picked. Do this one either way, since it's currently the only way mail actually reaches you.
-
-Do one hosting guide plus the Discord guide and you're running.
-
-## Commands
-
-All replies are ephemeral, meaning only you can see them.
-
-| Command | What it does | Default rate limit |
-|---|---|---|
-| `/new` | Creates a disposable address. Caps out at 5 active at once. | 1 per 30 seconds |
-| `/list` | Lists your active addresses and when they expire. | 15 per 60 seconds |
-| `/extend <address>` | Pushes the expiry out another 7 days. | 15 per 60 seconds |
-| `/torch <address>` | Revokes an address right away. | 15 per 60 seconds |
-
-Addresses expire 7 days after creation (or after your last `/extend`) whether you torch them or not. Every one of these numbers is a configurable default, not a hardcoded rule. See the [configuration reference](docs/configuration.md).
+One hosting guide, plus the Discord guide.
 
 ## How it works
 
 1. `/new` generates a random address and stores who owns it.
-2. You hand that address out somewhere.
-3. Mail arrives. Whatever's receiving it (Cloudflare's catch-all, your own SMTP server, or a poll against mail.tm) hands it off to the core, which looks up the owner. If the address is missing, expired, or torched, the mail just gets dropped. No bounce, nothing logged.
-4. If the address is valid, the parsed mail (HTML converted to readable text, links kept intact, attachments forwarded) goes out through whichever delivery adapter is enabled.
+2. You hand it out.
+3. Mail arrives. The receiver looks up the owner. Missing, expired, or torched: dropped, no bounce, nothing logged.
+4. Valid: the mail gets parsed (HTML to readable text, links intact, attachments forwarded) and sent to Discord.
 
-A daily cleanup job clears out expired and torched addresses, plus old rate-limit rows, on every hosting path.
+Daily cleanup clears expired/torched addresses and stale rate-limit rows, on every path.
 
-Everything happens in DMs. Commands can be run wherever the bot is installed, a server channel or straight in DMs, but delivery never posts anywhere public. Mail only ever lands in the DM of whoever owns the address.
+Delivery is always a DM, even if the bot's in a server and you ran `/new` in a channel there. Nothing posts anywhere public.
 
 ## Architecture
 
 ```
-src/core/             The engine. Address CRUD, rate limiting, dispatch, MIME
-                       parsing. Imports nothing from adapters/ or storage/,
-                       only ever talks to the interfaces defined in core/.
-src/core/storage.ts    SqlExecutor: the small run/first/all interface core
-                        runs SQL against. D1 and SQLite both speak SQLite
-                        dialect, so every query in core/db.ts and
-                        core/ratelimit.ts is shared word for word between
-                        them. Two thin drivers, one set of business logic.
-src/storage/           The two SqlExecutor implementations: d1.ts and
-                        sqlite.ts (via better-sqlite3).
+src/core/             Address CRUD, rate limiting, dispatch, MIME parsing.
+                       Doesn't import from adapters/ or storage/.
+src/core/storage.ts    SqlExecutor: the run/first/all interface core runs
+                       SQL against. D1 and SQLite are both SQLite dialect,
+                       so core/db.ts and core/ratelimit.ts are shared
+                       between them word for word.
+src/storage/           d1.ts and sqlite.ts, the two SqlExecutor drivers.
 src/adapters/          Delivery adapters. discord/ ships built in.
-src/worker.ts           Cloudflare entrypoint.
-src/node/               Self-hosted entrypoint: an SMTP server, a plain
-                         HTTP server for the Discord webhook, and a cleanup
-                         schedule that matches the Cloudflare cron timing.
-                         http-server.ts and cleanup-schedule.ts are shared
-                         with the mail.tm entrypoint below, since serving
-                         the webhook and running cleanup on a schedule
-                         don't depend on how mail is actually received.
-src/receivers/mailtm/  The mail.tm entrypoint: a client for their API, a
-                         poller instead of an SMTP server, and its own
-                         cleanup that deletes the account on their side
-                         before dropping the row here.
+src/worker.ts          Cloudflare entrypoint.
+src/node/               Self-hosted entrypoint (SMTP server, HTTP server
+                         for the Discord webhook, cleanup schedule).
+src/receivers/mailtm/  mail.tm entrypoint (API client, poller instead of
+                         SMTP, its own cleanup that deletes the mail.tm
+                         account before dropping the row).
 ```
 
 ## Extending it
 
-**Adding a delivery adapter.** Implement `MailAdapter` in `src/core/types.ts`: a `name` and a `deliver(owner, mail)` that returns `{ success, error? }` and never throws. Register it in `buildAdapters()` in both entrypoints. That's the whole contract. Core doesn't need to know anything else about it.
+**Delivery adapter.** Implement `MailAdapter` in `src/core/types.ts`: a `name`, and a `deliver(owner, mail)` that returns `{ success, error? }` and never throws. Register it in `buildAdapters()`.
 
-**Adding a storage or receiving backend.** Implement `SqlExecutor` in `src/core/storage.ts` against whatever SQL engine you want, `schema.sql` already works against anything SQLite-dialect-compatible. Pair it with something that calls `handleInboundEmail({ to, from, raw }, db, dispatcher)` in `core/email.ts` for each piece of mail that comes in. `raw` accepts a `Buffer`, a `ReadableStream`, a string, whatever `postal-mime` takes, which covers most real receiving mechanisms without extra glue code.
+**Storage or receiving backend.** Implement `SqlExecutor` in `src/core/storage.ts`. Call `handleInboundEmail({ to, from, raw }, db, dispatcher)` from `core/email.ts` for each piece of mail. `raw` takes a `Buffer`, `ReadableStream`, or string, whatever `postal-mime` accepts.
 
 ## Limits
 
-- 5 active addresses per owner by default, 7 day expiry. Both configurable.
-- Discord DM bodies are 1500 characters inline. Anything longer gets attached as `message.txt`.
-- Inbound HTML is capped at 256KB before parsing. Email parsing gets slower quadratically as input grows, and addresses are reachable by anyone who learns one, so this keeps worst case CPU bounded instead of rejecting large mail outright.
-- Attachments forward individually up to a combined 25MB per email. Anything over budget gets dropped with a note instead of throwing out the whole batch.
+- 5 active addresses per owner, 10 day expiry. Both configurable.
+- DM bodies cap at 1500 characters inline, longer gets attached as `message.txt`.
+- Inbound HTML caps at 256KB before parsing (parsing cost scales quadratically with input, and addresses are reachable by anyone who learns one).
+- Attachments forward individually up to 25MB combined per email. Over budget gets dropped with a note, not the whole batch.
 
 ## License
 

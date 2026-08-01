@@ -27,7 +27,7 @@ const commands = [
   },
   {
     name: "extend",
-    description: "Extend a disposable email address by 7 days",
+    description: "Extend a disposable email address by 10 days",
     integration_types: GUILD_AND_USER_INSTALL,
     contexts: ALL_CONTEXTS,
     options: [

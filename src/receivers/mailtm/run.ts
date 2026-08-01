@@ -1,4 +1,5 @@
 import { fileURLToPath, URL as NodeURL } from "node:url";
+import { printBanner } from "../../banner.ts";
 import { createDiscordAdapter } from "../../adapters/discord/index.ts";
 import { buildCommandConfig } from "../../adapters/discord/config.ts";
 import { createDispatcher } from "../../core/dispatch.ts";
@@ -26,7 +27,7 @@ function main() {
   const dispatcher = createDispatcher(buildAdapters(config.adapters, config.discordToken));
   const commandConfig = buildCommandConfig(process.env as Record<string, string | undefined>);
 
-  console.log(`Cindermail (mail.tm mode) starting. storage: ${config.sqlitePath}`);
+  printBanner(`mail.tm mode, storage: ${config.sqlitePath}`);
   startHttpServer(config.httpPort, config.discordPublicKey, db, createMailtmAddress, commandConfig);
   startMailtmPoller(db, dispatcher, config.pollIntervalMs);
   scheduleCleanup(() => runMailtmCleanup(db));

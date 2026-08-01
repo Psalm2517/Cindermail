@@ -42,7 +42,7 @@ function rateLimitFromEnv(
 export function buildCommandConfig(env: Record<string, string | undefined>): CommandConfig {
   return {
     maxActiveAddresses: parseIntEnv(env.MAX_ACTIVE_ADDRESSES, 5),
-    addressTtlSeconds: parseIntEnv(env.ADDRESS_TTL_SECONDS, 7 * 24 * 60 * 60),
+    addressTtlSeconds: parseIntEnv(env.ADDRESS_TTL_SECONDS, 10 * 24 * 60 * 60),
     rateLimits: {
       new: rateLimitFromEnv(env, "RATE_LIMIT_NEW", 30, 1),
       list: rateLimitFromEnv(env, "RATE_LIMIT_LIST", 60, 15),
