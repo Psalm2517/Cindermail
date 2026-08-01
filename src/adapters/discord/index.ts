@@ -18,22 +18,23 @@ export function createDiscordAdapter(botToken: string): MailAdapter {
         const useFullBodyFile = Boolean(mail.html) || mail.text.length > INLINE_BODY_CAP;
         let bodyText = mail.text;
 
-        if (useFullBodyFile) {
+        if (mail.html) {
+          // The text/plain part (if any) is not trustworthy as a preview here — some
+          // senders populate it with raw HTML or other markup instead of real plain text.
+          bodyText = "(HTML email — full message attached)";
+          files.push({
+            filename: "message.html",
+            contentType: "text/html; charset=utf-8",
+            content: new TextEncoder().encode(mail.html).buffer as ArrayBuffer,
+          });
+        } else if (useFullBodyFile) {
           const preview = mail.text.slice(0, INLINE_BODY_CAP);
           bodyText = `${preview}${mail.text.length > INLINE_BODY_CAP ? "…" : ""}\n\n(full message attached)`;
-          if (mail.html) {
-            files.push({
-              filename: "message.html",
-              contentType: "text/html; charset=utf-8",
-              content: new TextEncoder().encode(mail.html).buffer as ArrayBuffer,
-            });
-          } else {
-            files.push({
-              filename: "message.txt",
-              contentType: "text/plain; charset=utf-8",
-              content: new TextEncoder().encode(mail.text).buffer as ArrayBuffer,
-            });
-          }
+          files.push({
+            filename: "message.txt",
+            contentType: "text/plain; charset=utf-8",
+            content: new TextEncoder().encode(mail.text).buffer as ArrayBuffer,
+          });
         }
 
         let content = `${header}\n${bodyText}`;
