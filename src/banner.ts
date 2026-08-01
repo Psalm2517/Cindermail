@@ -8,20 +8,22 @@ import { fileURLToPath } from "node:url";
 const ESC = String.fromCharCode(27);
 const RESET = `${ESC}[0m`;
 
-// Flame sitting on an envelope, small enough for a startup line.
+// A flame with a face sitting on an envelope, small enough for a startup line.
 const HOT = "#FFE066";
 const MID = "#FF8C1A";
+const EYE = "#2A1204";
 const PAPER = "#E8E4DA";
 
-type Cell = null | typeof HOT | typeof MID | typeof PAPER;
+type Cell = null | typeof HOT | typeof MID | typeof EYE | typeof PAPER;
 
 const GRID: Cell[][] = [
-  [null, null, HOT, HOT, null, null],
-  [null, MID, MID, MID, MID, null],
-  [PAPER, PAPER, PAPER, PAPER, PAPER, PAPER],
-  [PAPER, null, null, null, null, PAPER],
-  [PAPER, null, null, null, null, PAPER],
-  [PAPER, PAPER, PAPER, PAPER, PAPER, PAPER],
+  [null, null, null, HOT, null, null, null],
+  [null, null, HOT, HOT, HOT, null, null],
+  [null, MID, EYE, MID, EYE, MID, null],
+  [null, MID, MID, MID, MID, MID, null],
+  [PAPER, PAPER, PAPER, PAPER, PAPER, PAPER, PAPER],
+  [PAPER, null, null, null, null, null, PAPER],
+  [PAPER, PAPER, PAPER, PAPER, PAPER, PAPER, PAPER],
 ];
 
 function hexToRgb(hex: string): [number, number, number] {
