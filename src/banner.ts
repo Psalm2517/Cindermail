@@ -8,23 +8,20 @@ import { fileURLToPath } from "node:url";
 const ESC = String.fromCharCode(27);
 const RESET = `${ESC}[0m`;
 
-// . = empty, Y = hot yellow tip, O = orange body, R = red edges/base.
+// Flame sitting on an envelope, small enough for a startup line.
 const HOT = "#FFE066";
 const MID = "#FF8C1A";
-const EDGE = "#E8380D";
+const PAPER = "#E8E4DA";
 
-type Cell = null | typeof HOT | typeof MID | typeof EDGE;
+type Cell = null | typeof HOT | typeof MID | typeof PAPER;
 
 const GRID: Cell[][] = [
-  [null, null, null, HOT, null, null, null],
-  [null, null, HOT, HOT, HOT, null, null],
-  [null, MID, MID, HOT, MID, null, null],
-  [null, MID, MID, HOT, MID, MID, null],
-  [null, MID, MID, MID, MID, MID, null],
-  [EDGE, MID, MID, MID, MID, MID, EDGE],
-  [EDGE, EDGE, MID, MID, MID, EDGE, EDGE],
-  [EDGE, EDGE, EDGE, MID, EDGE, EDGE, EDGE],
-  [null, EDGE, EDGE, EDGE, EDGE, EDGE, null],
+  [null, null, HOT, HOT, null, null],
+  [null, MID, MID, MID, MID, null],
+  [PAPER, PAPER, PAPER, PAPER, PAPER, PAPER],
+  [PAPER, null, null, null, null, PAPER],
+  [PAPER, null, null, null, null, PAPER],
+  [PAPER, PAPER, PAPER, PAPER, PAPER, PAPER],
 ];
 
 function hexToRgb(hex: string): [number, number, number] {
