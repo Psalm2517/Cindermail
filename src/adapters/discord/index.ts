@@ -6,8 +6,8 @@ const DISCORD_MESSAGE_CAP = 2000;
 const INLINE_BODY_CAP = 1500;
 const DISCORD_PAYLOAD_CAP = 25 * 1024 * 1024;
 
-// Email HTML is attacker-controlled — anyone who learns an address can send
-// to it — and the tag-matching in htmlToText scales quadratically with input
+// Email HTML is attacker-controlled: anyone who learns an address can send
+// to it, and the tag-matching in htmlToText scales quadratically with input
 // size. Cloudflare accepts messages far larger than any real email body, so
 // bound what gets parsed to keep worst-case CPU well inside Worker limits.
 const MAX_HTML_LENGTH = 256 * 1024;
@@ -16,14 +16,14 @@ const MAX_HTML_LENGTH = 256 * 1024;
 // email is likely all-image content (a common marketing-email pattern) that
 // htmlToText correctly has nothing to show for. Rather than leaving the
 // user with an empty-looking message, fall back to attaching the raw HTML
-// so it's still viewable (open it in a browser — the image URLs it
+// so it's still viewable (open it in a browser, the image URLs it
 // references still resolve).
 const SPARSE_TEXT_THRESHOLD = 200;
 const SUBSTANTIAL_HTML_THRESHOLD = 1500;
 
 // A hard character-count slice can land in the middle of a link's "label
 // (url)" text, leaving a dangling fragment. Cut on whole-line boundaries
-// instead — every link produced by htmlToText lives entirely within a
+// instead. Every link produced by htmlToText lives entirely within a
 // single line, so this never splits one.
 function truncateAtLineBoundary(text: string, maxLength: number): string {
   const lines = text.split("\n");
@@ -49,7 +49,7 @@ export function createDiscordAdapter(botToken: string): MailAdapter {
         const files: DiscordFile[] = [];
         const notes: string[] = [];
 
-        // The text/plain part (if any) is not trustworthy on its own — some senders
+        // The text/plain part (if any) is not trustworthy on its own. Some senders
         // populate it with raw HTML or other markup instead of real plain text. When
         // an HTML part exists, always derive the readable body from it directly.
         const html = mail.html && mail.html.length > MAX_HTML_LENGTH ? mail.html.slice(0, MAX_HTML_LENGTH) : mail.html;
@@ -69,7 +69,7 @@ export function createDiscordAdapter(botToken: string): MailAdapter {
         }
 
         if (html && readableText.trim().length < SPARSE_TEXT_THRESHOLD && html.length > SUBSTANTIAL_HTML_THRESHOLD) {
-          notes.push("_(mostly images — original HTML attached; open it in a browser to view)_");
+          notes.push("_(mostly images, original HTML attached; open it in a browser to view)_");
           files.push({
             filename: "message.html",
             contentType: "text/html; charset=utf-8",
@@ -95,8 +95,8 @@ export function createDiscordAdapter(botToken: string): MailAdapter {
           notes.push(`_(${skipped} attachment${skipped === 1 ? "" : "s"} too large, discarded)_`);
         }
 
-        // Assemble and cap exactly once, with every note already included —
-        // appending after the cap check could push the message back over
+        // Assemble and cap exactly once, with every note already included.
+        // Appending after the cap check could push the message back over
         // Discord's limit and fail the whole delivery.
         let content = `${header}\n${bodyText}`;
         if (notes.length > 0) {

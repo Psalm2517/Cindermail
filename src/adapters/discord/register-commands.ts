@@ -1,4 +1,4 @@
-// Standalone script — not part of the Worker bundle.
+// Standalone script, not part of the Worker bundle.
 // Run with: DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... node --experimental-strip-types src/adapters/discord/register-commands.ts
 
 const token = process.env.DISCORD_TOKEN;

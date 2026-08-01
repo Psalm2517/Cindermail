@@ -1,5 +1,5 @@
-// Self-hosters own the abuse-vs-friction tradeoff for their own deployment —
-// these aren't safety rails Cinderbox needs to enforce on everyone, so
+// Self-hosters own the abuse-vs-friction tradeoff for their own deployment.
+// These aren't safety rails Cindermail needs to enforce on everyone, so
 // they're tunable via env vars rather than hardcoded. Defaults match a
 // public/multi-user deployment; a solo self-hoster who wants no limits at
 // all can set every RATE_LIMIT_*_MAX to a very large number, or 0 to disable

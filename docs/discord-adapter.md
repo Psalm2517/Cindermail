@@ -1,0 +1,56 @@
+# Setting up the Discord adapter
+
+This is the same regardless of whether you're on Cloudflare or self-hosting. It's the step that actually gets mail delivered to you, everything in the two hosting guides only gets mail as far as "received and stored."
+
+You should have already finished one of [deploy-cloudflare.md](deploy-cloudflare.md) or [deploy-selfhost.md](deploy-selfhost.md) before starting this.
+
+## 1. Create a Discord application
+
+Go to [discord.com/developers/applications](https://discord.com/developers/applications) and create a new application. Give it a bot user under the Bot tab if it doesn't already have one.
+
+From the General Information and Bot tabs, grab three values:
+
+- The bot token
+- The public key (labeled "Public Key" on General Information)
+- The application ID
+
+## 2. Give it those credentials
+
+**If you're on Cloudflare:**
+
+```bash
+npx wrangler secret put DISCORD_TOKEN
+npx wrangler secret put DISCORD_PUBLIC_KEY
+npx wrangler secret put DISCORD_APPLICATION_ID
+```
+
+Each one prompts you to paste the value in.
+
+**If you're self-hosting:**
+
+Open the `.env` file you created earlier and fill in `DISCORD_TOKEN`, `DISCORD_PUBLIC_KEY`, and `DISCORD_APPLICATION_ID`. Restart the process (`npm start`, or restart the container) so it picks them up.
+
+## 3. Register the slash commands
+
+With `DISCORD_TOKEN` and `DISCORD_APPLICATION_ID` set in your environment:
+
+```bash
+npm run register-commands
+```
+
+This registers `/new`, `/list`, `/extend`, and `/torch` with Discord. It only needs to run again if you change a command's name or arguments, not every deploy.
+
+## 4. Point Discord at your interactions endpoint
+
+Back in the Discord Developer Portal, on the General Information tab, set the Interactions Endpoint URL:
+
+- **Cloudflare:** `https://<your-worker>.<your-subdomain>.workers.dev/interactions`
+- **Self-hosted:** the HTTPS URL from your reverse proxy or tunnel, plus `/interactions`
+
+Discord verifies this by sending a signed ping the moment you save it. If that fails, it's almost always one of two things: the `DISCORD_PUBLIC_KEY` you set doesn't match the app's actual Verify Key, or your endpoint isn't reachable yet (DNS hasn't propagated, the reverse proxy isn't up, that kind of thing).
+
+## 5. Try it
+
+The bot works installed to a server, or installed to just your own account for DM only use, both are enabled by default by `register-commands.ts`. Grab an install link from the Installation tab in the Developer Portal.
+
+Run `/new` somewhere you have the bot. You should get an ephemeral reply with a fresh address. Send that address a test email and you should get a DM back within a few seconds.

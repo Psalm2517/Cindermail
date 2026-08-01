@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import type { SqlExecutor } from "../core/storage.ts";
 
 // D1 and SQLite both speak SQLite dialect, so schema.sql is shared verbatim
-// between the two deployment targets — this only applies it once, on first
+// between the two deployment targets. This only applies it once, on first
 // run, rather than requiring a separate self-host init step.
 export function openSqliteDatabase(path: string, schemaPath: string): Database.Database {
   const db = new Database(path);

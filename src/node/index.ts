@@ -155,7 +155,7 @@ function main() {
   const dispatcher = createDispatcher(buildAdapters(config.adapters, config.discordToken));
   const commandConfig = buildCommandConfig(process.env as Record<string, string | undefined>);
 
-  console.log(`Cinderbox starting — domain: ${config.disposableDomain}, storage: ${config.sqlitePath}`);
+  console.log(`Cindermail starting. domain: ${config.disposableDomain}, storage: ${config.sqlitePath}`);
   startSmtpServer(config, db, dispatcher);
   startHttpServer(config, db, commandConfig);
   scheduleCleanup(db);

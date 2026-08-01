@@ -8,7 +8,7 @@ const MAX_CREATE_ATTEMPTS = 5;
 // Addresses must not be predictable: users can mint addresses and see the
 // results, and Math.random()'s PRNG state is recoverable from observed
 // output, which would let one user guess another's addresses. Uses rejection
-// sampling — bytes at or above the largest multiple of the alphabet length
+// sampling: bytes at or above the largest multiple of the alphabet length
 // are discarded rather than folded in with %, which would bias the low
 // characters of the alphabet.
 const REJECTION_LIMIT = 256 - (256 % ALPHABET.length);
@@ -141,7 +141,7 @@ export async function deleteExpiredAndRevoked(db: SqlExecutor, graceSeconds: num
 // Rate-limit rows are keyed by (owner, action) so the table is bounded by
 // user count rather than traffic, but rows for users who stop using the bot
 // would otherwise persist forever. Anything whose window closed long ago is
-// inert — dropping it is equivalent to the row never having existed.
+// inert. Dropping it is equivalent to the row never having existed.
 export async function deleteStaleRateLimits(db: SqlExecutor, olderThanSeconds: number): Promise<number> {
   const cutoff = Math.floor(Date.now() / 1000) - olderThanSeconds;
   const result = await db.run(`DELETE FROM rate_limits WHERE window_start <= ?`, cutoff);

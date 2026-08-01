@@ -4,7 +4,7 @@ import type { Dispatcher } from "./dispatch.ts";
 import type { SqlExecutor } from "./storage.ts";
 import type { OwnerRef, ParsedMail } from "./types.ts";
 
-// Deliberately not Cloudflare's ForwardableEmailMessage — postal-mime already
+// Deliberately not Cloudflare's ForwardableEmailMessage: postal-mime already
 // accepts every raw format either deployment target hands it (a Worker's
 // ReadableStream, a Buffer from a self-hosted SMTP server), so this is the
 // only shape core needs to know about.
@@ -47,7 +47,7 @@ export async function handleInboundEmail(
   const result = await dispatcher.deliverMail(owner, mail);
 
   // A failed delivery (most often the recipient having DMs closed) must not
-  // throw — the mail is already accepted at this point and retrying would
+  // throw. The mail is already accepted at this point and retrying would
   // just redeliver. But failing silently makes it impossible to tell a
   // broken adapter from an empty inbox, so record that it happened. Only the
   // adapter type and error are logged: never message content, addresses, or

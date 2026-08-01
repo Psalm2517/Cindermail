@@ -104,7 +104,7 @@ async function handleList(db: SqlExecutor, owner: OwnerRef) {
   if (addresses.length === 0) {
     return ephemeralReply("You have no active addresses.");
   }
-  const lines = addresses.map((a) => `\`${a.address}\` — expires <t:${a.expires_at}:R>`);
+  const lines = addresses.map((a) => `\`${a.address}\`, expires <t:${a.expires_at}:R>`);
   return ephemeralReply(lines.join("\n"));
 }
 

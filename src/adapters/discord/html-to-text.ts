@@ -28,7 +28,7 @@ function decodeEntities(text: string): string {
   });
 }
 
-// Invisible formatting characters — ESPs commonly pad a hidden preheader
+// Invisible formatting characters. ESPs commonly pad a hidden preheader
 // with hundreds of these to control the inbox preview snippet. They render
 // as nothing but count as real characters, so left alone they silently eat
 // into the inline-preview length budget.
@@ -48,12 +48,12 @@ const ANCHOR_TAG = /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/
 
 // Screen-reader-only accessibility text (e.g. Salesforce Marketing Cloud's
 // pattern of a hidden <span> with a label like "Experian header logo" next to
-// a logo/icon <img>) is visually hidden via CSS, not omitted from the HTML —
+// a logo/icon <img>) is visually hidden via CSS, not omitted from the HTML,
 // so a naive tag-strip surfaces it as if it were real, visible link text.
 //
 // display:none / visibility:hidden are ALSO used for entirely unrelated,
-// legitimate reasons in email templates — dark-mode overrides, hidden
-// preheader tricks, mobile-vs-desktop alternate layouts — and those can
+// legitimate reasons in email templates: dark-mode overrides, hidden
+// preheader tricks, mobile-vs-desktop alternate layouts. Those can
 // wrap huge chunks of the real, intended content. Only treat this as a
 // throwaway accessibility label when it's short; an actual a11y label is a
 // few words, never a full content block.
@@ -74,7 +74,7 @@ function replaceLinks(text: string): string {
 
   return text.replace(ANCHOR_TAG, (match, href: string, inner: string) => {
     // Image-only links (logos, social icons, app-store badges, tracking pixels)
-    // carry no readable content — alt text is for accessibility, not a summary,
+    // carry no readable content. Alt text is for accessibility, not a summary,
     // and surfacing it just clutters the message with decorative noise. Only
     // links with real anchor text are kept.
     const label = inner.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -88,7 +88,7 @@ function replaceLinks(text: string): string {
     }
 
     // Same destination linked more than once (e.g. a logo and a text CTA
-    // pointing at the same tracking URL) — keep the first occurrence only.
+    // pointing at the same tracking URL): keep the first occurrence only.
     if (seenUrls.has(url)) {
       return label;
     }

@@ -1,7 +1,7 @@
 {
   "name": "cinderbox",
   "version": "1.0.0",
-  "description": "Disposable email addresses on your own domain, delivered to Discord DMs. Deploy on Cloudflare Workers or self-host on any Node server.",
+  "description": "A self-hosted disposable email service. Runs on Cloudflare Workers or your own server, delivers via a pluggable adapter (Discord ships built in).",
   "license": "MIT",
   "type": "module",
   "private": true,

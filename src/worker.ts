@@ -15,8 +15,8 @@ export interface Env {
   DISCORD_TOKEN: string;
   DISCORD_PUBLIC_KEY: string;
   DISCORD_APPLICATION_ID: string;
-  // Optional overrides for adapters/discord/config.ts defaults — see
-  // wrangler.toml.example and the README for the full list of accepted vars.
+  // Optional overrides for adapters/discord/config.ts defaults, see
+  // docs/configuration.md for the full list of accepted vars.
   [key: string]: unknown;
 }
 

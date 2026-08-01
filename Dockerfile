@@ -15,9 +15,9 @@ COPY package.json ./
 COPY schema.sql ./
 COPY src ./src
 
-# SMTP_PORT defaults to an unprivileged port so the process never needs root
-# — map the real port 25 to it at the `docker run -p` / compose level
-# instead of binding privileged ports inside the container.
+# SMTP_PORT defaults to an unprivileged port so the process never needs root.
+# Map the real port 25 to it at the `docker run -p` / compose level instead
+# of binding privileged ports inside the container.
 ENV SMTP_PORT=2525
 ENV HTTP_PORT=8787
 ENV SQLITE_PATH=/data/cinderbox.db
