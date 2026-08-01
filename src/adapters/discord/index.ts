@@ -6,6 +6,15 @@ const DISCORD_MESSAGE_CAP = 2000;
 const INLINE_BODY_CAP = 1500;
 const DISCORD_PAYLOAD_CAP = 25 * 1024 * 1024;
 
+// If the extracted text is thin but the source HTML was substantial, the
+// email is likely all-image content (a common marketing-email pattern) that
+// htmlToText correctly has nothing to show for. Rather than leaving the
+// user with an empty-looking message, fall back to attaching the raw HTML
+// so it's still viewable (open it in a browser — the image URLs it
+// references still resolve).
+const SPARSE_TEXT_THRESHOLD = 200;
+const SUBSTANTIAL_HTML_THRESHOLD = 1500;
+
 // A hard character-count slice can land in the middle of a link's "label
 // (url)" text, leaving a dangling fragment. Cut on whole-line boundaries
 // instead — every link produced by htmlToText lives entirely within a
@@ -48,6 +57,15 @@ export function createDiscordAdapter(botToken: string): MailAdapter {
           });
         } else if (readableText.length === 0) {
           bodyText = "(no readable content)";
+        }
+
+        if (mail.html && readableText.trim().length < SPARSE_TEXT_THRESHOLD && mail.html.length > SUBSTANTIAL_HTML_THRESHOLD) {
+          bodyText += "\n\n_(mostly images — original HTML attached; open it in a browser to view)_";
+          files.push({
+            filename: "message.html",
+            contentType: "text/html; charset=utf-8",
+            content: new TextEncoder().encode(mail.html).buffer as ArrayBuffer,
+          });
         }
 
         let content = `${header}\n${bodyText}`;
