@@ -32,6 +32,13 @@ const BLOCK_CLOSE_TAGS = /<\/(p|div|tr|table|li|h[1-6]|blockquote|section|articl
 const BREAK_TAGS = /<br\s*\/?>/gi;
 const ANCHOR_TAG = /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
 
+// Screen-reader-only accessibility text (e.g. Salesforce Marketing Cloud's
+// pattern of a hidden <span> with a label like "Experian header logo" next to
+// a logo/icon <img>) is visually hidden via CSS, not omitted from the HTML —
+// so a naive tag-strip surfaces it as if it were real, visible link text.
+const HIDDEN_ELEMENT =
+  /<(span|div|td|p)\b(?=[^>]*\b(?:class\s*=\s*["'][^"']*(?:sr-only|screen-?reader|visually-?hidden|assistive)[^"']*["']|style\s*=\s*["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0)[^"']*["']))[^>]*>[\s\S]*?<\/\1>/gi;
+
 function replaceLinks(text: string): string {
   return text.replace(ANCHOR_TAG, (match, href: string, inner: string) => {
     // Image-only links (logos, social icons, app-store badges, tracking pixels)
@@ -54,7 +61,8 @@ function replaceLinks(text: string): string {
 export function htmlToText(html: string): string {
   let text = html
     .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, "");
+    .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, "")
+    .replace(HIDDEN_ELEMENT, "");
 
   text = replaceLinks(text);
 
