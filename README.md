@@ -23,16 +23,12 @@ A core that generates addresses, tracks who owns them, parses incoming mail, and
 - **Where mail comes from.** Cloudflare (Email Routing + D1), your own server (SMTP + SQLite), or mail.tm (no domain, no server).
 - **Where mail goes.** Discord.
 
-Pick one from each list.
-
 ## Setup guides
 
 - **[Cloudflare Workers](docs/deploy-cloudflare.md)**: no server to run, just a Cloudflare account and a domain.
 - **[Self-hosted](docs/deploy-selfhost.md)**: your own machine, your own domain, your own uptime.
 - **[mail.tm](docs/deploy-mailtm.md)**: no domain or server at all. Read the caveat in that guide first, mail.tm's domain is a known temp-mail domain and some signup forms block it.
 - **[Discord setup](docs/discord-adapter.md)**: same steps regardless of which of the above you picked. Commands (`/new` `/list` `/extend` `/torch`) are documented there.
-
-One hosting guide, plus delivery setup.
 
 ## How it works
 
@@ -43,37 +39,14 @@ One hosting guide, plus delivery setup.
 
 Daily cleanup clears expired/torched addresses and stale rate-limit rows, on every path.
 
-## Architecture
-
-```
-src/core/             Address CRUD, rate limiting, dispatch, MIME parsing.
-                       Doesn't import from adapters/ or storage/.
-src/core/storage.ts    SqlExecutor: the run/first/all interface core runs
-                       SQL against. D1 and SQLite are both SQLite dialect,
-                       so core/db.ts and core/ratelimit.ts are shared
-                       between them word for word.
-src/storage/           d1.ts and sqlite.ts, the two SqlExecutor drivers.
-src/adapters/          Delivery adapters. discord/ ships built in.
-src/worker.ts          Cloudflare entrypoint.
-src/node/               Self-hosted entrypoint (SMTP server, HTTP server
-                         for the Discord webhook, cleanup schedule).
-src/receivers/mailtm/  mail.tm entrypoint (API client, poller instead of
-                         SMTP, its own cleanup that deletes the mail.tm
-                         account before dropping the row).
-```
-
-## Extending it
-
-**Delivery adapter.** Implement `MailAdapter` in `src/core/types.ts`: a `name`, and a `deliver(owner, mail)` that returns `{ success, error? }` and never throws. Register it in `buildAdapters()`.
-
-**Storage or receiving backend.** Implement `SqlExecutor` in `src/core/storage.ts`. Call `handleInboundEmail({ to, from, raw }, db, dispatcher)` from `core/email.ts` for each piece of mail. `raw` takes a `Buffer`, `ReadableStream`, or string, whatever `postal-mime` accepts.
-
 ## Limits
 
 - 5 active addresses per owner, 10 day expiry. Both configurable.
 - Message bodies cap at 1500 characters inline, longer gets attached as `message.txt`.
 - Inbound HTML caps at 256KB before parsing (parsing cost scales quadratically with input, and addresses are reachable by anyone who learns one).
 - Attachments forward individually up to 25MB combined per email. Over budget gets dropped with a note, not the whole batch.
+
+Code layout and how to add an adapter or backend: [docs/architecture.md](docs/architecture.md).
 
 ## License
 
