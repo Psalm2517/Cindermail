@@ -14,7 +14,7 @@
 
 Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets sent to it is parsed, cleaned up, and delivered to you. Torch it when you're done.
 
-<!-- ![Example delivery](docs/images/example-dm.png) -->
+![Example delivery](docs/images/example-dm.png)
 
 ## Two moving parts
 
