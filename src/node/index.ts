@@ -2,7 +2,6 @@ import { fileURLToPath, URL as NodeURL } from "node:url";
 import { SMTPServer, type SMTPServerDataStream, type SMTPServerSession } from "smtp-server";
 import { printFlame } from "../banner.ts";
 import { loadEnvFile } from "../env-file.ts";
-import { createCliAdapter } from "../adapters/cli/index.ts";
 import { createDiscordAdapter } from "../adapters/discord/index.ts";
 import { buildCommandConfig } from "../adapters/discord/config.ts";
 import { createAddress, deleteExpiredAndRevoked, deleteStaleRateLimits } from "../core/db.ts";
@@ -18,13 +17,10 @@ import { startHttpServer } from "./http-server.ts";
 const CLEANUP_GRACE_SECONDS = 24 * 60 * 60;
 const STALE_RATE_LIMIT_SECONDS = 30 * 24 * 60 * 60;
 
-function buildAdapters(adapters: string[], discordToken: string, db: SqlExecutor): MailAdapter[] {
+function buildAdapters(adapters: string[], discordToken: string): MailAdapter[] {
   const list: MailAdapter[] = [];
   if (adapters.includes("discord")) {
     list.push(createDiscordAdapter(discordToken));
-  }
-  if (adapters.includes("cli")) {
-    list.push(createCliAdapter(db));
   }
   return list;
 }
@@ -75,7 +71,7 @@ function main() {
   const config = loadNodeHostConfig();
   const rawDb = openSqliteDatabase(config.sqlitePath, fileURLToPath(new NodeURL("../../schema.sql", import.meta.url)));
   const db = createSqliteExecutor(rawDb);
-  const dispatcher = createDispatcher(buildAdapters(config.adapters, config.discordToken, db));
+  const dispatcher = createDispatcher(buildAdapters(config.adapters, config.discordToken));
   const commandConfig = buildCommandConfig(process.env as Record<string, string | undefined>);
   const createAddressFn = (executor: SqlExecutor, owner: OwnerRef, ttl: number) =>
     createAddress(executor, owner, config.disposableDomain, ttl);
