@@ -1,4 +1,4 @@
-CREATE TABLE addresses (
+CREATE TABLE IF NOT EXISTS addresses (
   address TEXT PRIMARY KEY,
   owner_type TEXT NOT NULL,
   owner_id TEXT NOT NULL,
@@ -13,9 +13,9 @@ CREATE TABLE addresses (
   -- up after itself. Core never reads or writes this column.
   receiver_data TEXT
 );
-CREATE INDEX idx_addresses_owner ON addresses(owner_type, owner_id);
+CREATE INDEX IF NOT EXISTS idx_addresses_owner ON addresses(owner_type, owner_id);
 
-CREATE TABLE rate_limits (
+CREATE TABLE IF NOT EXISTS rate_limits (
   owner_type TEXT NOT NULL,
   owner_id TEXT NOT NULL,
   action TEXT NOT NULL,
@@ -23,3 +23,16 @@ CREATE TABLE rate_limits (
   count INTEGER NOT NULL,
   PRIMARY KEY (owner_type, owner_id, action)
 );
+
+-- Delivered mail for the cli adapter, which has no chat client to push into
+-- so it stores messages here for `cindermail messages`/`read` to pull from.
+CREATE TABLE IF NOT EXISTS cli_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  address TEXT NOT NULL,
+  from_address TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  body TEXT NOT NULL,
+  received_at INTEGER NOT NULL,
+  read INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_cli_messages_address ON cli_messages(address);

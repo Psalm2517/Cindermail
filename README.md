@@ -21,7 +21,7 @@ Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets
 A core that generates addresses, tracks who owns them, parses incoming mail, and doesn't care where any of it came from or where it's going. Two things plug into it:
 
 - **Where mail comes from.** Cloudflare (Email Routing + D1), your own server (SMTP + SQLite), or mail.tm (no domain, no server).
-- **Where mail goes.** Discord.
+- **Where mail goes.** Discord, or a local CLI.
 
 ## Setup guides
 
@@ -29,10 +29,11 @@ A core that generates addresses, tracks who owns them, parses incoming mail, and
 - **[Self-hosted](docs/deploy-selfhost.md)**: your own machine, your own domain, your own uptime.
 - **[mail.tm](docs/deploy-mailtm.md)**: no domain or server at all. Read the caveat in that guide first, mail.tm's domain is a known temp-mail domain and some signup forms block it.
 - **[Discord setup](docs/discord-adapter.md)**: same steps regardless of which of the above you picked. Commands (`/new` `/list` `/extend` `/torch`) are documented there.
+- **[CLI setup](docs/cli-adapter.md)**: manage addresses and read mail from a terminal instead, no chat app required.
 
 ## How it works
 
-1. `/new` generates a random address and stores who owns it.
+1. Generate a random address (`/new` on Discord, `new` on the CLI) and store who owns it.
 2. You hand it out.
 3. Mail arrives. The receiver looks up the owner. Missing, expired, or torched: dropped, no bounce, nothing logged.
 4. Valid: the mail gets parsed (HTML to readable text, links intact, attachments forwarded) and delivered.
