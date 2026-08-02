@@ -32,8 +32,8 @@ A core that generates addresses, tracks who owns them, parses incoming mail, and
 
 ## How it works
 
-1. `/new` generates a random address and stores who owns it.
-2. You hand it out.
+1. `/new` generates a random address and ties it to whoever ran the command.
+2. Give that address to whatever's asking for an email, a signup form, a newsletter, whatever. Mail sent to it always comes back to you, not wherever you gave it out.
 3. Mail arrives. The receiver looks up the owner. Missing, expired, or torched: dropped, no bounce, nothing logged.
 4. Valid: the mail gets parsed (HTML to readable text, links intact, attachments forwarded) and delivered.
 
