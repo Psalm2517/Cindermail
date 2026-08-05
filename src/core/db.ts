@@ -58,6 +58,7 @@ export async function createAddress(
     );
 
     if (result.changes > 0) {
+      await incrementCreatedCounter(db);
       return address;
     }
   }
@@ -90,6 +91,7 @@ export async function registerAddress(
     permanent ? 1 : 0,
     receiverData
   );
+  await incrementCreatedCounter(db);
 }
 
 export async function getAddress(db: SqlExecutor, address: string): Promise<AddressRow | null> {
@@ -183,6 +185,9 @@ export async function revokeAddress(db: SqlExecutor, owner: OwnerRef, address: s
     owner.type,
     owner.id
   );
+  if (result.changes > 0) {
+    await incrementTorchedCounter(db);
+  }
   return result.changes > 0;
 }
 
@@ -214,4 +219,27 @@ export async function deleteStaleRateLimits(db: SqlExecutor, olderThanSeconds: n
   const cutoff = Math.floor(Date.now() / 1000) - olderThanSeconds;
   const result = await db.run(`DELETE FROM rate_limits WHERE window_start <= ?`, cutoff);
   return result.changes;
+}
+
+// Running totals for the public counter page. Not wrapped in the same
+// transaction as the insert/revoke they follow -- SqlExecutor has no
+// multi-statement transaction primitive -- so a crash between the two
+// statements could undercount by one in a rare edge case. Fine for a vanity
+// counter, not worth adding transaction plumbing for.
+async function incrementCreatedCounter(db: SqlExecutor): Promise<void> {
+  await db.run(`UPDATE counters SET created = created + 1 WHERE id = 1`);
+}
+
+async function incrementTorchedCounter(db: SqlExecutor): Promise<void> {
+  await db.run(`UPDATE counters SET torched = torched + 1 WHERE id = 1`);
+}
+
+export interface Counters {
+  created: number;
+  torched: number;
+}
+
+export async function getCounters(db: SqlExecutor): Promise<Counters> {
+  const row = await db.first<Counters>(`SELECT created, torched FROM counters WHERE id = 1`);
+  return row ?? { created: 0, torched: 0 };
 }

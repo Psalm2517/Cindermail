@@ -27,3 +27,14 @@ CREATE TABLE rate_limits (
   count INTEGER NOT NULL,
   PRIMARY KEY (owner_type, owner_id, action)
 );
+
+-- Running totals for the public counter page (Cloudflare path only). A
+-- single row rather than a live COUNT(*), since cleanup physically deletes
+-- expired/torched rows and a live count would lose history as soon as that
+-- runs.
+CREATE TABLE counters (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  created INTEGER NOT NULL DEFAULT 0,
+  torched INTEGER NOT NULL DEFAULT 0
+);
+INSERT INTO counters (id, created, torched) VALUES (1, 0, 0);
