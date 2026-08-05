@@ -221,21 +221,35 @@ export async function deleteStaleRateLimits(db: SqlExecutor, olderThanSeconds: n
   return result.changes;
 }
 
-// Running totals for the public counter page. Not wrapped in the same
-// transaction as the insert/revoke they follow -- SqlExecutor has no
-// multi-statement transaction primitive -- so a crash between the two
-// statements could undercount by one in a rare edge case. Fine for a vanity
-// counter, not worth adding transaction plumbing for.
+// Running totals for the public counter page. Deliberately best effort:
+// these are display-only numbers, and a database that predates the counters
+// table (an existing deployment that hasn't run migrations 0004/0005 yet)
+// must not lose mail or fail to hand out addresses over a stat nobody's
+// looking at. A failure here is logged and swallowed, never propagated to
+// the caller.
+//
+// Not wrapped in the same transaction as the insert/revoke they follow
+// either -- SqlExecutor has no multi-statement transaction primitive -- so
+// a crash between the two statements can undercount by one. Fine for a
+// vanity counter, not worth adding transaction plumbing for.
+async function bumpCounter(db: SqlExecutor, column: "created" | "torched" | "received"): Promise<void> {
+  try {
+    await db.run(`UPDATE counters SET ${column} = ${column} + 1 WHERE id = 1`);
+  } catch (err) {
+    console.warn(`counter "${column}" not incremented: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 async function incrementCreatedCounter(db: SqlExecutor): Promise<void> {
-  await db.run(`UPDATE counters SET created = created + 1 WHERE id = 1`);
+  await bumpCounter(db, "created");
 }
 
 async function incrementTorchedCounter(db: SqlExecutor): Promise<void> {
-  await db.run(`UPDATE counters SET torched = torched + 1 WHERE id = 1`);
+  await bumpCounter(db, "torched");
 }
 
 export async function incrementReceivedCounter(db: SqlExecutor): Promise<void> {
-  await db.run(`UPDATE counters SET received = received + 1 WHERE id = 1`);
+  await bumpCounter(db, "received");
 }
 
 export interface Counters {
@@ -244,7 +258,14 @@ export interface Counters {
   received: number;
 }
 
+// Same reasoning as bumpCounter: the page renders zeroes rather than the
+// endpoint 500ing if the table isn't there yet.
 export async function getCounters(db: SqlExecutor): Promise<Counters> {
-  const row = await db.first<Counters>(`SELECT created, torched, received FROM counters WHERE id = 1`);
-  return row ?? { created: 0, torched: 0, received: 0 };
+  try {
+    const row = await db.first<Counters>(`SELECT created, torched, received FROM counters WHERE id = 1`);
+    return row ?? { created: 0, torched: 0, received: 0 };
+  } catch (err) {
+    console.warn(`counters unavailable: ${err instanceof Error ? err.message : String(err)}`);
+    return { created: 0, torched: 0, received: 0 };
+  }
 }

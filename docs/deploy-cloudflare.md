@@ -2,7 +2,7 @@
 
 This covers getting mail received and stored. It has nothing to do with Discord, that's a separate step in [discord-adapter.md](discord-adapter.md) you'll do once this part is working, regardless of which hosting path you picked.
 
-This path needs a domain you own. If you'd rather not deal with one, [deploy-mailtm.md](deploy-mailtm.md) needs no domain, DNS, or server. `npm run setup` handles the `wrangler.toml` and D1 parts of steps 1 and 2 below for you if you do want this path.
+This path needs a domain you own. If you'd rather not deal with one, [deploy-mailtm.md](deploy-mailtm.md) needs no domain, DNS, or server. `npm run setup` handles the `wrangler.jsonc` and D1 parts of steps 1 and 2 below for you if you do want this path.
 
 ## What you need
 
@@ -23,7 +23,9 @@ npm install
 npx wrangler d1 create cinderbox
 ```
 
-Copy `wrangler.toml.example` to `wrangler.toml`. Fill in the `database_id` that command just printed, plus your `DISPOSABLE_DOMAIN`. `wrangler.toml` is gitignored, so none of your account specific values ever get committed.
+Open `wrangler.jsonc` and fill in the `database_id` that command just printed, plus your own `DISPOSABLE_DOMAIN`. `npm run setup` does both for you if you'd rather not edit it by hand.
+
+`wrangler.jsonc` is committed rather than gitignored: Cloudflare Workers Builds clones this repo and needs the D1 binding present at build time, and bindings set only in the dashboard don't reliably survive into new versions. Nothing secret goes in it, the database id and domain are identifiers rather than credentials, and Discord's tokens stay in `wrangler secret put`. Note that it takes precedence over a `wrangler.toml` silently, so if you create one of those instead it will be ignored.
 
 ```bash
 npm run cf:db:init
@@ -50,3 +52,23 @@ Then in the Cloudflare dashboard, under Email > Email Routing, add a catch-all r
 ## 5. Set up mail delivery
 
 Mail is now being received and stored. It won't go anywhere yet, because nothing is set up to deliver it. That's the Discord adapter setup, and it's the same regardless of Cloudflare vs self-hosting, so it lives in its own guide: [discord-adapter.md](discord-adapter.md).
+
+## The status page
+
+This path (and only this path) also serves a small public page at the Worker's root showing running totals: addresses created, emails received, addresses torched. `GET /counters` returns the same numbers as JSON if you want them elsewhere. Nothing per-user or per-address is exposed, just three totals.
+
+To reach it on your own domain rather than the `workers.dev` URL, add a Custom Domain under the Worker's Settings > Domains & Routes. That's separate from the Email Routing rule above, which only handles inbound mail.
+
+The totals come from a `counters` table rather than counting rows, since daily cleanup deletes expired and torched rows and a live count would shrink as it ran. If the table isn't there the counters read as zero and nothing else breaks, so an existing deployment that hasn't applied the migrations below still hands out addresses and delivers mail normally.
+
+## Upgrading an existing deployment
+
+Fresh installs get everything from `schema.sql` and need none of this. A database created before a given feature existed needs that feature's migration applied once:
+
+```bash
+npx wrangler d1 execute cinderbox --remote --file=migrations/0003_add_permanent.sql
+npx wrangler d1 execute cinderbox --remote --file=migrations/0004_add_counters.sql
+npx wrangler d1 execute cinderbox --remote --file=migrations/0005_add_received_counter.sql
+```
+
+`0003` is what `/new permanent:` and `/extend permanent:` need, `0004` and `0005` are the status page's totals. Self-hosted and mail.tm deployments apply the same files against their SQLite database instead.
