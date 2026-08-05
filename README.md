@@ -18,21 +18,6 @@ Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets
 
 ![Example delivery](docs/images/example-dm.png)
 
-## Deploy to Cloudflare
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
-
-**What clicking it actually does:** forks this repo into your own Cloudflare account, creates a brand-new D1 database (it does not touch this project's own database), deploys the Worker, and prompts you to paste in `DISCORD_TOKEN`, `DISCORD_PUBLIC_KEY`, and `DISCORD_APPLICATION_ID` during the flow.
-
-**What it does not do** — all still required after clicking it:
-
-1. **Load the database schema.** The button doesn't run `schema.sql`. Your new database is empty until you run `npx wrangler d1 execute cinderbox --remote --file=schema.sql` yourself.
-2. **Set your own domain.** It deploys with whatever's already committed in [wrangler.jsonc](wrangler.jsonc) (this project's domain, address limits), not yours. Edit those in the Cloudflare dashboard afterward, under the Worker's Settings.
-3. **Point your domain at Cloudflare Email Routing**, then add a catch-all rule targeting the new Worker.
-4. **Register the Discord commands** (`npm run register-commands`) and set the Interactions Endpoint URL in the Discord Developer Portal.
-
-None of that is optional — the bot won't receive mail or respond to commands until all four are done. Full walkthrough, in order: [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md).
-
 ## Quick start
 
 ```bash
@@ -51,9 +36,26 @@ A core that generates addresses, tracks who owns them, parses incoming mail, and
 ## Setup guides
 
 - **[mail.tm](docs/deploy-mailtm.md)**: quickest, no domain or server at all. Read the caveat in that guide first, mail.tm's domain is a known temp-mail domain and some signup forms block it.
-- **[Cloudflare Workers](docs/deploy-cloudflare.md)**: your own domain, no server to run, just a Cloudflare account.
+- **[Cloudflare Workers](docs/deploy-cloudflare.md)**: your own domain, no server to run, just a Cloudflare account. A [Deploy to Cloudflare button](#deploy-to-cloudflare) is also available if you'd rather skip cloning the repo.
 - **[Self-hosted](docs/deploy-selfhost.md)**: your own machine, your own domain, your own uptime.
 - **[Discord setup](docs/discord-adapter.md)**: same steps regardless of which of the above you picked. Commands (`/new` `/list` `/extend` `/torch`) are documented there.
+
+## Deploy to Cloudflare
+
+This is a shortcut for the Cloudflare Workers path above, not a separate way to get started. If you're not already set on Cloudflare, use Quick start instead.
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
+
+**What clicking it actually does:** forks this repo into your own Cloudflare account, creates a brand new D1 database (it does not touch this project's own database), deploys the Worker, and prompts you to paste in `DISCORD_TOKEN`, `DISCORD_PUBLIC_KEY`, and `DISCORD_APPLICATION_ID` during the flow.
+
+**What it does not do**, all still required after clicking it:
+
+1. **Load the database schema.** The button doesn't run `schema.sql`. Your new database is empty until you run `npx wrangler d1 execute cinderbox --remote --file=schema.sql` yourself.
+2. **Set your own domain.** It deploys with whatever's already committed in [wrangler.jsonc](wrangler.jsonc), this project's domain and address limits, not yours. Edit those in the Cloudflare dashboard afterward, under the Worker's Settings.
+3. **Point your domain at Cloudflare Email Routing**, then add a catch-all rule targeting the new Worker.
+4. **Register the Discord commands** (`npm run register-commands`) and set the Interactions Endpoint URL in the Discord Developer Portal.
+
+None of that is optional. The bot won't receive mail or respond to commands until all four are done. Full walkthrough, in order: [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md).
 
 ## How it works
 
