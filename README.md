@@ -22,7 +22,16 @@ Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
 
-Provisions a fresh D1 database for you and prompts for the three Discord secrets. It deploys with this repo's committed `wrangler.jsonc` values otherwise (domain, address limits) — check [wrangler.jsonc](wrangler.jsonc) in the dashboard afterward and edit anything you want different for your own deployment. Full walkthrough, including the parts the button can't do (Email Routing, Discord command registration): [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md).
+**What clicking it actually does:** forks this repo into your own Cloudflare account, creates a brand-new D1 database (it does not touch this project's own database), deploys the Worker, and prompts you to paste in `DISCORD_TOKEN`, `DISCORD_PUBLIC_KEY`, and `DISCORD_APPLICATION_ID` during the flow.
+
+**What it does not do** — all still required after clicking it:
+
+1. **Load the database schema.** The button doesn't run `schema.sql`. Your new database is empty until you run `npx wrangler d1 execute cinderbox --remote --file=schema.sql` yourself.
+2. **Set your own domain.** It deploys with whatever's already committed in [wrangler.jsonc](wrangler.jsonc) (this project's domain, address limits), not yours. Edit those in the Cloudflare dashboard afterward, under the Worker's Settings.
+3. **Point your domain at Cloudflare Email Routing**, then add a catch-all rule targeting the new Worker.
+4. **Register the Discord commands** (`npm run register-commands`) and set the Interactions Endpoint URL in the Discord Developer Portal.
+
+None of that is optional — the bot won't receive mail or respond to commands until all four are done. Full walkthrough, in order: [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md).
 
 ## Quick start
 

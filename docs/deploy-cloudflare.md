@@ -4,7 +4,7 @@ This covers getting mail received and stored. It has nothing to do with Discord,
 
 This path needs a domain you own. If you'd rather not deal with one, [deploy-mailtm.md](deploy-mailtm.md) needs no domain, DNS, or server. `npm run setup` handles the `wrangler.jsonc` and D1 parts of steps 1 and 2 below for you if you do want this path.
 
-There's also a [Deploy to Cloudflare button](../README.md#deploy-to-cloudflare) if you'd rather skip the local clone entirely. It provisions its own D1 database and prompts for the Discord secrets, but it deploys with this repo's committed domain and address limits, so still read step 2 and step 3 below to know what to go change afterward, and steps 4-5 for Email Routing and Discord command registration, which it doesn't do for you.
+There's also a [Deploy to Cloudflare button](../README.md#deploy-to-cloudflare) if you'd rather skip the local clone. It forks the repo, creates a new (empty) D1 database, deploys the Worker, and prompts for the three Discord secrets — that's all it does. You still need to do everything below except the `wrangler d1 create` command in step 2 (the button already made you a database, don't make a second one): run `npm run cf:db:init` to actually load the schema into it, set your own `DISPOSABLE_DOMAIN` in `wrangler.jsonc` instead of the one it deployed with, point your domain at Email Routing (step 3), and register the Discord commands ([discord-adapter.md](discord-adapter.md)). None of those are optional just because you used the button.
 
 ## What you need
 
