@@ -18,7 +18,12 @@ export interface MailtmReceiverData {
 // on mail.tm's side first, then persist whatever it gave back plus enough
 // to authenticate as that mailbox later (the poller needs to log back in on
 // every cycle, and cleanup needs the account id to delete it).
-export async function createMailtmAddress(db: SqlExecutor, owner: OwnerRef, ttlSeconds: number): Promise<string> {
+export async function createMailtmAddress(
+  db: SqlExecutor,
+  owner: OwnerRef,
+  ttlSeconds: number,
+  permanent = false
+): Promise<string> {
   const domain = await getActiveDomain();
 
   for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
@@ -28,7 +33,7 @@ export async function createMailtmAddress(db: SqlExecutor, owner: OwnerRef, ttlS
     try {
       const account = await createAccount(address, password);
       const receiverData: MailtmReceiverData = { provider: "mailtm", password, accountId: account.id };
-      await registerAddress(db, address, owner, ttlSeconds, JSON.stringify(receiverData));
+      await registerAddress(db, address, owner, ttlSeconds, JSON.stringify(receiverData), permanent);
       return address;
     } catch (err) {
       // 422 means the address is already taken on mail.tm's side (or, once

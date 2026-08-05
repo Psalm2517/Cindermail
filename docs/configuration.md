@@ -10,7 +10,7 @@ Cloudflare deployments set these in `wrangler.toml` under `[vars]` for non-secre
 | `DISCORD_PUBLIC_KEY` | yes | required, no default | Used to verify that interaction requests actually came from Discord. |
 | `DISCORD_APPLICATION_ID` | yes | required, no default | Used by `register-commands.ts`. |
 | `MAX_ACTIVE_ADDRESSES` | no | `5` | How many addresses one owner can have active at the same time. |
-| `ADDRESS_TTL_SECONDS` | no | `864000` (10 days) | How long a new or extended address lives before it expires. |
+| `ADDRESS_TTL_SECONDS` | no | `864000` (10 days) | How long a new or extended address lives before it expires. Addresses marked permanent ignore this, see [discord-adapter.md](discord-adapter.md#permanent-addresses). |
 | `RATE_LIMIT_<CMD>_WINDOW_SECONDS` | no | see below | Window length for a given command's rate limit. `<CMD>` is one of `NEW`, `LIST`, `EXTEND`, `TORCH`. |
 | `RATE_LIMIT_<CMD>_MAX` | no | see below | Max calls allowed per window. Set this to `0` and that command's rate limit is disabled entirely. |
 

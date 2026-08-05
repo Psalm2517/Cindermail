@@ -73,8 +73,8 @@ function main() {
   const db = createSqliteExecutor(rawDb);
   const dispatcher = createDispatcher(buildAdapters(config.adapters, config.discordToken));
   const commandConfig = buildCommandConfig(process.env as Record<string, string | undefined>);
-  const createAddressFn = (executor: SqlExecutor, owner: OwnerRef, ttl: number) =>
-    createAddress(executor, owner, config.disposableDomain, ttl);
+  const createAddressFn = (executor: SqlExecutor, owner: OwnerRef, ttl: number, permanent: boolean) =>
+    createAddress(executor, owner, config.disposableDomain, ttl, permanent);
 
   console.log(`Cindermail  domain: ${config.disposableDomain}, storage: ${config.sqlitePath}`);
   startSmtpServer(config, db, dispatcher);

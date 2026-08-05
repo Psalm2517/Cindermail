@@ -63,8 +63,12 @@ export default {
       if (interaction.type === 2) {
         const db = createD1Executor(env.DB);
         const config = buildCommandConfig(env as Record<string, string | undefined>);
-        const createAddressFn = (executor: ReturnType<typeof createD1Executor>, owner: OwnerRef, ttl: number) =>
-          createAddress(executor, owner, env.DISPOSABLE_DOMAIN, ttl);
+        const createAddressFn = (
+          executor: ReturnType<typeof createD1Executor>,
+          owner: OwnerRef,
+          ttl: number,
+          permanent: boolean
+        ) => createAddress(executor, owner, env.DISPOSABLE_DOMAIN, ttl, permanent);
         const result = await handleInteraction(interaction, db, createAddressFn, config);
         return Response.json(result);
       }

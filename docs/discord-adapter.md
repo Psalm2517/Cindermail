@@ -63,9 +63,22 @@ Every reply is ephemeral, a Discord message type only the person who ran the com
 
 | Command | What it does | Default rate limit |
 |---|---|---|
-| `/new` | Creates a disposable address. Max 5 active. | 1 per 30s |
+| `/new [permanent]` | Creates a disposable address. Max 5 active. | 1 per 30s |
 | `/list` | Lists your active addresses and expiry. | 15 per 60s |
-| `/extend <address>` | Pushes expiry out 10 days. | 15 per 60s |
+| `/extend <address> [permanent]` | Pushes expiry out 10 days, or flips permanence. | 15 per 60s |
 | `/torch <address>` | Revokes an address. | 15 per 60s |
 
 Addresses expire 10 days after creation or your last `/extend`, torched or not. Every number here is a configurable default, see [configuration.md](configuration.md).
+
+## Permanent addresses
+
+`permanent` is an optional true/false on both `/new` and `/extend`. A permanent address never expires and is good until you torch it, which is still the only thing that ends it.
+
+- `/new permanent: true` creates one that never expires.
+- `/extend <address> permanent: true` makes an existing address permanent.
+- `/extend <address> permanent: false` puts it back on the clock, expiring 10 days out.
+- Leaving the option off does what it always did: `/new` gets the normal expiry, `/extend` pushes expiry out and leaves permanence alone.
+
+Permanent addresses still count against your active address limit, and `/list` shows them as `permanent` instead of a countdown. Daily cleanup skips them, so the only way one leaves the database is `/torch`.
+
+If you're upgrading an existing deployment rather than starting fresh, apply `migrations/0003_add_permanent.sql` to your database first, and re-run `npm run register-commands` so Discord picks up the new option.

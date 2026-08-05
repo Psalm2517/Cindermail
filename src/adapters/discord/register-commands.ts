@@ -18,6 +18,14 @@ const commands = [
     description: "Create a new disposable email address",
     integration_types: GUILD_AND_USER_INSTALL,
     contexts: ALL_CONTEXTS,
+    options: [
+      {
+        type: 5,
+        name: "permanent",
+        description: "Never expire, good until torched",
+        required: false,
+      },
+    ],
   },
   {
     name: "list",
@@ -27,7 +35,7 @@ const commands = [
   },
   {
     name: "extend",
-    description: "Extend a disposable email address by 10 days",
+    description: "Extend a disposable email address, or make it permanent",
     integration_types: GUILD_AND_USER_INSTALL,
     contexts: ALL_CONTEXTS,
     options: [
@@ -36,6 +44,12 @@ const commands = [
         name: "address",
         description: "The address to extend",
         required: true,
+      },
+      {
+        type: 5,
+        name: "permanent",
+        description: "True to never expire, false to go back to expiring",
+        required: false,
       },
     ],
   },
