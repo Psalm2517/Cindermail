@@ -1,6 +1,6 @@
 # Configuration reference
 
-Cloudflare deployments set these in `wrangler.toml` under `[vars]` for non-secret values, or via `wrangler secret put` for secrets. Self-hosted deployments set all of them in `.env`.
+Cloudflare deployments set these in `wrangler.jsonc` under `vars` for non-secret values, or via `wrangler secret put` for secrets. Self-hosted deployments set all of them in `.env`.
 
 | Variable | Secret? | Default | What it does |
 |---|---|---|---|

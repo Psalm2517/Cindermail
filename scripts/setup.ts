@@ -117,37 +117,53 @@ async function setupCloudflare(): Promise<void> {
     return;
   }
 
-  let content = readFileSync("wrangler.toml.example", "utf8");
+  // wrangler.jsonc is committed (Workers Builds clones the repo and needs
+  // the D1 binding present at build time), so this edits it in place rather
+  // than writing a second config file. Wrangler picks .jsonc over .toml
+  // silently, so a stray wrangler.toml would just be ignored.
+  let content = readFileSync("wrangler.jsonc", "utf8");
 
   const domain = await ask("\nDomain addresses get generated on (e.g. yourdomain.com)");
   if (domain) {
-    content = content.replace(/^DISPOSABLE_DOMAIN = .*$/m, `DISPOSABLE_DOMAIN = "${domain}"`);
+    content = content.replace(/("DISPOSABLE_DOMAIN":\s*)"[^"]*"/, `$1"${domain}"`);
   }
 
   for (const [key, value] of Object.entries(await askLimits())) {
-    content = content.replace(/^(ADAPTERS = .*)$/m, `$1\n${key} = "${value}"`);
+    content = content.replace(new RegExp(`("${key}":\\s*)"[^"]*"`), `$1"${value}"`);
+    if (!content.includes(`"${key}"`)) {
+      content = content.replace(/("ADAPTERS":\s*"[^"]*")/, `$1,\n    "${key}": "${value}"`);
+    }
   }
 
   if (await confirm("\nRun `wrangler d1 create cinderbox` now?")) {
     try {
       const output = execFileSync("npx", ["wrangler", "d1", "create", "cinderbox"], { encoding: "utf8" });
-      const id = output.match(/database_id\s*=\s*"([^"]+)"/)?.[1];
+      const id = output.match(/database_id\s*[=:]\s*"?([0-9a-f-]{36})"?/i)?.[1];
       if (id) {
-        content = content.replace("REPLACE_WITH_D1_DATABASE_ID", id);
+        content = content.replace(/("database_id":\s*)"[^"]*"/, `$1"${id}"`);
         console.log(`Found database_id ${id}`);
       } else {
-        console.log("Couldn't find a database_id in wrangler's output. Copy it into");
-        console.log("wrangler.toml yourself, it's printed above.");
+        console.log("Couldn't find a database_id in wrangler's output. Put it into");
+        console.log("wrangler.jsonc yourself, it's printed above.");
       }
     } catch {
       console.log("`wrangler d1 create` failed. If it's an auth error, run `wrangler login`");
       console.log("first. Otherwise create the database yourself and put its database_id");
-      console.log("into wrangler.toml.");
+      console.log("into wrangler.jsonc.");
     }
   }
 
-  if (!(await writeGuarded("wrangler.toml", content))) {
+  const originalId = readFileSync("wrangler.jsonc", "utf8").match(/"database_id":\s*"([^"]*)"/)?.[1];
+  const keptUpstreamId = originalId && content.includes(`"database_id": "${originalId}"`);
+
+  if (!(await writeGuarded("wrangler.jsonc", content))) {
     return;
+  }
+
+  if (keptUpstreamId) {
+    console.log("\n! wrangler.jsonc still has the database_id it shipped with, which");
+    console.log("  points at someone else's D1 database. Replace it with your own");
+    console.log("  before deploying: `npx wrangler d1 create cinderbox` prints one.");
   }
 
   console.log("\nNext, the parts that can't be scripted:");
