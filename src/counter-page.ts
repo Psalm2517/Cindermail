@@ -22,13 +22,46 @@ export function renderCounterPage(): string {
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     text-align: center;
   }
-  main { padding: 2rem; }
-  .flame { font-size: 3rem; filter: drop-shadow(0 0 18px rgba(255,120,40,0.6)); }
+  main { padding: 2rem; position: relative; }
+  .embers { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .ember {
+    position: absolute;
+    bottom: -1rem;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #ff9d52;
+    box-shadow: 0 0 6px 1px rgba(255,140,50,0.8);
+    animation: rise linear infinite;
+    opacity: 0;
+  }
+  @keyframes rise {
+    0% { transform: translateY(0) translateX(0); opacity: 0; }
+    10% { opacity: 0.8; }
+    100% { transform: translateY(-100vh) translateX(var(--drift, 20px)); opacity: 0; }
+  }
+  .flame {
+    font-size: 3rem;
+    display: inline-block;
+    filter: drop-shadow(0 0 18px rgba(255,120,40,0.6));
+    animation: flicker 2.6s ease-in-out infinite;
+  }
+  @keyframes flicker {
+    0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 18px rgba(255,120,40,0.6)); }
+    25% { transform: scale(1.05) rotate(-2deg); filter: drop-shadow(0 0 24px rgba(255,140,50,0.75)); }
+    50% { transform: scale(0.97) rotate(1deg); filter: drop-shadow(0 0 14px rgba(255,100,30,0.5)); }
+    75% { transform: scale(1.03) rotate(-1deg); filter: drop-shadow(0 0 22px rgba(255,150,60,0.7)); }
+  }
   h1 {
     margin: 0.25rem 0 2rem;
     font-size: 1.75rem;
     letter-spacing: 0.02em;
     color: #ff9d52;
+    animation: glow 2.6s ease-in-out infinite;
+  }
+  @keyframes glow {
+    0%, 100% { text-shadow: 0 0 12px rgba(255,140,50,0.3); }
+    50% { text-shadow: 0 0 22px rgba(255,140,50,0.6); }
   }
   .stats { display: flex; gap: 2.5rem; justify-content: center; flex-wrap: wrap; }
   .stat { min-width: 10rem; }
@@ -38,6 +71,11 @@ export function renderCounterPage(): string {
     font-variant-numeric: tabular-nums;
     color: #ffb877;
     text-shadow: 0 0 24px rgba(255,120,40,0.35);
+    transition: text-shadow 0.3s, transform 0.3s;
+  }
+  .stat .n.bump {
+    text-shadow: 0 0 32px rgba(255,160,70,0.85);
+    transform: scale(1.08);
   }
   .stat .label {
     margin-top: 0.4rem;
@@ -64,6 +102,7 @@ export function renderCounterPage(): string {
 </style>
 </head>
 <body>
+<div class="embers" id="embers"></div>
 <main>
   <div class="flame">🔥</div>
   <h1>Cindermail</h1>
@@ -77,19 +116,45 @@ export function renderCounterPage(): string {
   </a>
 </main>
 <script>
+  let last = { created: null, torched: null };
+
+  function setStat(id, value) {
+    const el = document.getElementById(id);
+    el.textContent = value.toLocaleString();
+    if (last[id] !== null && last[id] !== value) {
+      el.classList.remove('bump');
+      void el.offsetWidth; // restart the animation if it's still running
+      el.classList.add('bump');
+    }
+    last[id] = value;
+  }
+
   async function refresh() {
     try {
       const res = await fetch('/counters');
       if (!res.ok) return;
       const data = await res.json();
-      document.getElementById('created').textContent = data.created.toLocaleString();
-      document.getElementById('torched').textContent = data.torched.toLocaleString();
+      setStat('created', data.created);
+      setStat('torched', data.torched);
     } catch {
       // Next tick retries. Not worth surfacing a transient fetch failure here.
     }
   }
   refresh();
   setInterval(refresh, 5000);
+
+  // A handful of embers drifting up from the bottom of the screen, spaced
+  // out on a stagger so they don't all rise in lockstep.
+  const embers = document.getElementById('embers');
+  for (let i = 0; i < 14; i++) {
+    const ember = document.createElement('div');
+    ember.className = 'ember';
+    ember.style.left = Math.random() * 100 + 'vw';
+    ember.style.setProperty('--drift', (Math.random() * 60 - 30) + 'px');
+    ember.style.animationDuration = 6 + Math.random() * 6 + 's';
+    ember.style.animationDelay = Math.random() * 10 + 's';
+    embers.appendChild(ember);
+  }
 </script>
 </body>
 </html>`;
