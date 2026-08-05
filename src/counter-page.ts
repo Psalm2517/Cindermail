@@ -22,13 +22,46 @@ export function renderCounterPage(): string {
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     text-align: center;
   }
-  main { padding: 2rem; }
-  .flame { font-size: 3rem; filter: drop-shadow(0 0 18px rgba(255,120,40,0.6)); }
+  main { padding: 2rem; position: relative; }
+  .embers { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .ember {
+    position: absolute;
+    bottom: -1rem;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #ff9d52;
+    box-shadow: 0 0 6px 1px rgba(255,140,50,0.8);
+    animation: rise linear infinite;
+    opacity: 0;
+  }
+  @keyframes rise {
+    0% { transform: translateY(0) translateX(0); opacity: 0; }
+    10% { opacity: 0.8; }
+    100% { transform: translateY(-100vh) translateX(var(--drift, 20px)); opacity: 0; }
+  }
+  .flame {
+    font-size: 3rem;
+    display: inline-block;
+    filter: drop-shadow(0 0 18px rgba(255,120,40,0.6));
+    animation: flicker 2.6s ease-in-out infinite;
+  }
+  @keyframes flicker {
+    0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 18px rgba(255,120,40,0.6)); }
+    25% { transform: scale(1.05) rotate(-2deg); filter: drop-shadow(0 0 24px rgba(255,140,50,0.75)); }
+    50% { transform: scale(0.97) rotate(1deg); filter: drop-shadow(0 0 14px rgba(255,100,30,0.5)); }
+    75% { transform: scale(1.03) rotate(-1deg); filter: drop-shadow(0 0 22px rgba(255,150,60,0.7)); }
+  }
   h1 {
     margin: 0.25rem 0 2rem;
     font-size: 1.75rem;
     letter-spacing: 0.02em;
     color: #ff9d52;
+    animation: glow 2.6s ease-in-out infinite;
+  }
+  @keyframes glow {
+    0%, 100% { text-shadow: 0 0 12px rgba(255,140,50,0.3); }
+    50% { text-shadow: 0 0 22px rgba(255,140,50,0.6); }
   }
   .stats { display: flex; gap: 2.5rem; justify-content: center; flex-wrap: wrap; }
   .stat { min-width: 10rem; }
@@ -38,6 +71,11 @@ export function renderCounterPage(): string {
     font-variant-numeric: tabular-nums;
     color: #ffb877;
     text-shadow: 0 0 24px rgba(255,120,40,0.35);
+    transition: text-shadow 0.3s, transform 0.3s;
+  }
+  .stat .n.bump {
+    text-shadow: 0 0 32px rgba(255,160,70,0.85);
+    transform: scale(1.08);
   }
   .stat .label {
     margin-top: 0.4rem;
@@ -46,9 +84,25 @@ export function renderCounterPage(): string {
     letter-spacing: 0.08em;
     color: #c99b7a;
   }
+  .github {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 2.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    border: 1px solid #4a2c18;
+    color: #ffcaa1;
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .github:hover { border-color: #ff9d52; color: #ffe8d6; }
+  .github svg { width: 1rem; height: 1rem; fill: currentColor; }
 </style>
 </head>
 <body>
+<div class="embers" id="embers"></div>
 <main>
   <div class="flame">🔥</div>
   <h1>Cindermail</h1>
@@ -56,21 +110,51 @@ export function renderCounterPage(): string {
     <div class="stat"><div class="n" id="created">-</div><div class="label">addresses created</div></div>
     <div class="stat"><div class="n" id="torched">-</div><div class="label">torched</div></div>
   </div>
+  <a class="github" href="https://github.com/Psalm2517/Cindermail" target="_blank" rel="noopener">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+    Source code
+  </a>
 </main>
 <script>
+  let last = { created: null, torched: null };
+
+  function setStat(id, value) {
+    const el = document.getElementById(id);
+    el.textContent = value.toLocaleString();
+    if (last[id] !== null && last[id] !== value) {
+      el.classList.remove('bump');
+      void el.offsetWidth; // restart the animation if it's still running
+      el.classList.add('bump');
+    }
+    last[id] = value;
+  }
+
   async function refresh() {
     try {
       const res = await fetch('/counters');
       if (!res.ok) return;
       const data = await res.json();
-      document.getElementById('created').textContent = data.created.toLocaleString();
-      document.getElementById('torched').textContent = data.torched.toLocaleString();
+      setStat('created', data.created);
+      setStat('torched', data.torched);
     } catch {
       // Next tick retries. Not worth surfacing a transient fetch failure here.
     }
   }
   refresh();
   setInterval(refresh, 5000);
+
+  // A handful of embers drifting up from the bottom of the screen, spaced
+  // out on a stagger so they don't all rise in lockstep.
+  const embers = document.getElementById('embers');
+  for (let i = 0; i < 14; i++) {
+    const ember = document.createElement('div');
+    ember.className = 'ember';
+    ember.style.left = Math.random() * 100 + 'vw';
+    ember.style.setProperty('--drift', (Math.random() * 60 - 30) + 'px');
+    ember.style.animationDuration = 6 + Math.random() * 6 + 's';
+    ember.style.animationDelay = Math.random() * 10 + 's';
+    embers.appendChild(ember);
+  }
 </script>
 </body>
 </html>`;
