@@ -17,6 +17,13 @@
     "start:mailtm": "node --experimental-strip-types src/receivers/mailtm/run.ts",
     "banner": "node --experimental-strip-types src/banner.ts"
   },
+  "cloudflare": {
+    "bindings": {
+      "DISCORD_TOKEN": { "description": "Bot token, from the Bot tab of your Discord application" },
+      "DISCORD_PUBLIC_KEY": { "description": "Public Key, from the General Information tab" },
+      "DISCORD_APPLICATION_ID": { "description": "Application ID, from the General Information tab" }
+    }
+  },
   "keywords": [
     "disposable-email",
     "temp-mail",

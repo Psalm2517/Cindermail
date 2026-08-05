@@ -18,6 +18,12 @@ Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets
 
 ![Example delivery](docs/images/example-dm.png)
 
+## Deploy to Cloudflare
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
+
+Provisions a fresh D1 database for you and prompts for the three Discord secrets. It deploys with this repo's committed `wrangler.jsonc` values otherwise (domain, address limits) — check [wrangler.jsonc](wrangler.jsonc) in the dashboard afterward and edit anything you want different for your own deployment. Full walkthrough, including the parts the button can't do (Email Routing, Discord command registration): [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md).
+
 ## Quick start
 
 ```bash
