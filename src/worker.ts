@@ -2,10 +2,11 @@ import { verifyKey } from "discord-interactions";
 import { createDiscordAdapter } from "./adapters/discord/index.ts";
 import { buildCommandConfig } from "./adapters/discord/config.ts";
 import { handleInteraction, type DiscordInteraction } from "./adapters/discord/interactions.ts";
-import { createAddress, deleteExpiredAndRevoked, deleteStaleRateLimits } from "./core/db.ts";
+import { createAddress, deleteExpiredAndRevoked, deleteStaleRateLimits, getCounters } from "./core/db.ts";
 import { createDispatcher } from "./core/dispatch.ts";
 import { handleInboundEmail } from "./core/email.ts";
 import type { MailAdapter, OwnerRef } from "./core/types.ts";
+import { renderCounterPage } from "./counter-page.ts";
 import { createD1Executor } from "./storage/d1.ts";
 
 export interface Env {
@@ -35,6 +36,17 @@ function buildAdapters(env: Env): MailAdapter[] {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (request.method === "GET" && url.pathname === "/") {
+      return new Response(renderCounterPage(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    }
+
+    if (request.method === "GET" && url.pathname === "/counters") {
+      const db = createD1Executor(env.DB);
+      const counters = await getCounters(db);
+      return Response.json(counters);
+    }
+
     if (request.method === "POST" && url.pathname === "/interactions") {
       const signature = request.headers.get("X-Signature-Ed25519");
       const timestamp = request.headers.get("X-Signature-Timestamp");
@@ -63,8 +75,12 @@ export default {
       if (interaction.type === 2) {
         const db = createD1Executor(env.DB);
         const config = buildCommandConfig(env as Record<string, string | undefined>);
-        const createAddressFn = (executor: ReturnType<typeof createD1Executor>, owner: OwnerRef, ttl: number) =>
-          createAddress(executor, owner, env.DISPOSABLE_DOMAIN, ttl);
+        const createAddressFn = (
+          executor: ReturnType<typeof createD1Executor>,
+          owner: OwnerRef,
+          ttl: number,
+          permanent: boolean
+        ) => createAddress(executor, owner, env.DISPOSABLE_DOMAIN, ttl, permanent);
         const result = await handleInteraction(interaction, db, createAddressFn, config);
         return Response.json(result);
       }

@@ -37,5 +37,6 @@ export interface AddressRow {
   expires_at: number;
   revoked: number;
   revoked_at: number | null;
+  permanent: number;
   receiver_data: string | null;
 }

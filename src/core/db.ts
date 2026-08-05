@@ -37,7 +37,8 @@ export async function createAddress(
   db: SqlExecutor,
   owner: OwnerRef,
   domain: string,
-  ttlSeconds: number
+  ttlSeconds: number,
+  permanent = false
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = now + ttlSeconds;
@@ -45,17 +46,19 @@ export async function createAddress(
   for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
     const address = `${randomAlphanumeric(LOCAL_PART_LENGTH)}@${domain}`;
     const result = await db.run(
-      `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked)
-       VALUES (?, ?, ?, ?, ?, 0)
+      `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked, permanent)
+       VALUES (?, ?, ?, ?, ?, 0, ?)
        ON CONFLICT(address) DO NOTHING`,
       address,
       owner.type,
       owner.id,
       now,
-      expiresAt
+      expiresAt,
+      permanent ? 1 : 0
     );
 
     if (result.changes > 0) {
+      await incrementCreatedCounter(db);
       return address;
     }
   }
@@ -72,20 +75,23 @@ export async function registerAddress(
   address: string,
   owner: OwnerRef,
   ttlSeconds: number,
-  receiverData: string
+  receiverData: string,
+  permanent = false
 ): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = now + ttlSeconds;
   await db.run(
-    `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked, receiver_data)
-     VALUES (?, ?, ?, ?, ?, 0, ?)`,
+    `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked, permanent, receiver_data)
+     VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
     address,
     owner.type,
     owner.id,
     now,
     expiresAt,
+    permanent ? 1 : 0,
     receiverData
   );
+  await incrementCreatedCounter(db);
 }
 
 export async function getAddress(db: SqlExecutor, address: string): Promise<AddressRow | null> {
@@ -96,8 +102,8 @@ export async function listActiveAddresses(db: SqlExecutor, owner: OwnerRef): Pro
   const now = Math.floor(Date.now() / 1000);
   return db.all<AddressRow>(
     `SELECT * FROM addresses
-     WHERE owner_type = ? AND owner_id = ? AND revoked = 0 AND expires_at > ?
-     ORDER BY expires_at ASC`,
+     WHERE owner_type = ? AND owner_id = ? AND revoked = 0 AND (permanent = 1 OR expires_at > ?)
+     ORDER BY permanent ASC, expires_at ASC`,
     owner.type,
     owner.id,
     now
@@ -111,7 +117,8 @@ export async function listActiveAddresses(db: SqlExecutor, owner: OwnerRef): Pro
 export async function listActiveAddressesWithReceiverData(db: SqlExecutor): Promise<AddressRow[]> {
   const now = Math.floor(Date.now() / 1000);
   return db.all<AddressRow>(
-    `SELECT * FROM addresses WHERE receiver_data IS NOT NULL AND revoked = 0 AND expires_at > ?`,
+    `SELECT * FROM addresses
+     WHERE receiver_data IS NOT NULL AND revoked = 0 AND (permanent = 1 OR expires_at > ?)`,
     now
   );
 }
@@ -124,7 +131,7 @@ export async function listExpiredAndRevoked(db: SqlExecutor, graceSeconds: numbe
   return db.all<AddressRow>(
     `SELECT * FROM addresses
      WHERE (revoked = 1 AND COALESCE(revoked_at, expires_at) + ? <= ?)
-        OR (expires_at + ? <= ?)`,
+        OR (permanent = 0 AND expires_at + ? <= ?)`,
     graceSeconds,
     now,
     graceSeconds,
@@ -136,7 +143,7 @@ export async function countActiveAddresses(db: SqlExecutor, owner: OwnerRef): Pr
   const now = Math.floor(Date.now() / 1000);
   const row = await db.first<{ count: number }>(
     `SELECT COUNT(*) as count FROM addresses
-     WHERE owner_type = ? AND owner_id = ? AND revoked = 0 AND expires_at > ?`,
+     WHERE owner_type = ? AND owner_id = ? AND revoked = 0 AND (permanent = 1 OR expires_at > ?)`,
     owner.type,
     owner.id,
     now
@@ -144,15 +151,21 @@ export async function countActiveAddresses(db: SqlExecutor, owner: OwnerRef): Pr
   return row?.count ?? 0;
 }
 
+// expires_at is always pushed out, even when making an address permanent, so
+// that clearing the flag later leaves a fresh expiry rather than one that
+// lapsed while the address was permanent. `permanent` undefined leaves the
+// flag as it is, which is what a plain /extend does.
 export async function extendAddress(
   db: SqlExecutor,
   owner: OwnerRef,
   address: string,
-  ttlSeconds: number
+  ttlSeconds: number,
+  permanent?: boolean
 ): Promise<boolean> {
   const newExpiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const setPermanent = permanent === undefined ? "" : `, permanent = ${permanent ? 1 : 0}`;
   const result = await db.run(
-    `UPDATE addresses SET expires_at = ?
+    `UPDATE addresses SET expires_at = ?${setPermanent}
      WHERE address = ? AND owner_type = ? AND owner_id = ? AND revoked = 0`,
     newExpiresAt,
     address,
@@ -172,6 +185,9 @@ export async function revokeAddress(db: SqlExecutor, owner: OwnerRef, address: s
     owner.type,
     owner.id
   );
+  if (result.changes > 0) {
+    await incrementTorchedCounter(db);
+  }
   return result.changes > 0;
 }
 
@@ -179,12 +195,14 @@ export async function revokeAddress(db: SqlExecutor, owner: OwnerRef, address: s
 // rows once they are `graceSeconds` past the moment they were revoked, rather
 // than waiting out their original (possibly week-long) expiry. Rows revoked
 // before revoked_at existed have no timestamp, so they fall back to expiry.
+// Permanent rows never expire, so only the revoked branch can ever collect
+// them: torching one is still the way it goes away.
 export async function deleteExpiredAndRevoked(db: SqlExecutor, graceSeconds: number): Promise<number> {
   const now = Math.floor(Date.now() / 1000);
   const result = await db.run(
     `DELETE FROM addresses
      WHERE (revoked = 1 AND COALESCE(revoked_at, expires_at) + ? <= ?)
-        OR (expires_at + ? <= ?)`,
+        OR (permanent = 0 AND expires_at + ? <= ?)`,
     graceSeconds,
     now,
     graceSeconds,
@@ -201,4 +219,27 @@ export async function deleteStaleRateLimits(db: SqlExecutor, olderThanSeconds: n
   const cutoff = Math.floor(Date.now() / 1000) - olderThanSeconds;
   const result = await db.run(`DELETE FROM rate_limits WHERE window_start <= ?`, cutoff);
   return result.changes;
+}
+
+// Running totals for the public counter page. Not wrapped in the same
+// transaction as the insert/revoke they follow -- SqlExecutor has no
+// multi-statement transaction primitive -- so a crash between the two
+// statements could undercount by one in a rare edge case. Fine for a vanity
+// counter, not worth adding transaction plumbing for.
+async function incrementCreatedCounter(db: SqlExecutor): Promise<void> {
+  await db.run(`UPDATE counters SET created = created + 1 WHERE id = 1`);
+}
+
+async function incrementTorchedCounter(db: SqlExecutor): Promise<void> {
+  await db.run(`UPDATE counters SET torched = torched + 1 WHERE id = 1`);
+}
+
+export interface Counters {
+  created: number;
+  torched: number;
+}
+
+export async function getCounters(db: SqlExecutor): Promise<Counters> {
+  const row = await db.first<Counters>(`SELECT created, torched FROM counters WHERE id = 1`);
+  return row ?? { created: 0, torched: 0 };
 }

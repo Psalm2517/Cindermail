@@ -23,7 +23,7 @@ export async function handleInboundEmail(
   const row = await getAddress(db, recipient);
 
   const now = Math.floor(Date.now() / 1000);
-  if (!row || row.revoked !== 0 || row.expires_at <= now) {
+  if (!row || row.revoked !== 0 || (row.permanent !== 1 && row.expires_at <= now)) {
     return;
   }
 

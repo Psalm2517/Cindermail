@@ -49,7 +49,7 @@ Daily cleanup clears expired/torched addresses and stale rate-limit rows, on eve
 
 ## Limits
 
-- 5 active addresses per owner, 10 day expiry. Both configurable.
+- 5 active addresses per owner, 10 day expiry. Both configurable, and `/new permanent: true` opts a single address out of expiry entirely.
 - Message bodies cap at 1500 characters inline, longer gets attached as `message.txt`.
 - Inbound HTML caps at 256KB before parsing (parsing cost scales quadratically with input, and addresses are reachable by anyone who learns one).
 - Attachments forward individually up to 25MB combined per email. Over budget gets dropped with a note, not the whole batch.
