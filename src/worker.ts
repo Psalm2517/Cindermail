@@ -8,6 +8,7 @@ import { handleInboundEmail } from "./core/email.ts";
 import type { MailAdapter, OwnerRef } from "./core/types.ts";
 import { renderCounterPage } from "./counter-page.ts";
 import { createD1Executor } from "./storage/d1.ts";
+import pkg from "../package.json";
 
 export interface Env {
   DB: D1Database;
@@ -38,7 +39,7 @@ export default {
     const url = new URL(request.url);
 
     if (request.method === "GET" && url.pathname === "/") {
-      return new Response(renderCounterPage(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+      return new Response(renderCounterPage(pkg.version), { headers: { "Content-Type": "text/html; charset=utf-8" } });
     }
 
     if (request.method === "GET" && url.pathname === "/counters") {

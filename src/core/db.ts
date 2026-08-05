@@ -234,12 +234,17 @@ async function incrementTorchedCounter(db: SqlExecutor): Promise<void> {
   await db.run(`UPDATE counters SET torched = torched + 1 WHERE id = 1`);
 }
 
+export async function incrementReceivedCounter(db: SqlExecutor): Promise<void> {
+  await db.run(`UPDATE counters SET received = received + 1 WHERE id = 1`);
+}
+
 export interface Counters {
   created: number;
   torched: number;
+  received: number;
 }
 
 export async function getCounters(db: SqlExecutor): Promise<Counters> {
-  const row = await db.first<Counters>(`SELECT created, torched FROM counters WHERE id = 1`);
-  return row ?? { created: 0, torched: 0 };
+  const row = await db.first<Counters>(`SELECT created, torched, received FROM counters WHERE id = 1`);
+  return row ?? { created: 0, torched: 0, received: 0 };
 }

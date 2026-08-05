@@ -35,6 +35,7 @@ CREATE TABLE rate_limits (
 CREATE TABLE counters (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   created INTEGER NOT NULL DEFAULT 0,
-  torched INTEGER NOT NULL DEFAULT 0
+  torched INTEGER NOT NULL DEFAULT 0,
+  received INTEGER NOT NULL DEFAULT 0
 );
-INSERT INTO counters (id, created, torched) VALUES (1, 0, 0);
+INSERT INTO counters (id, created, torched, received) VALUES (1, 0, 0, 0);

@@ -1,7 +1,7 @@
 // Self-contained HTML for the public counter page, served by src/worker.ts.
 // No external assets: inline CSS/JS, matches the Worker's own
 // bundle-everything constraint.
-export function renderCounterPage(): string {
+export function renderCounterPage(version: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -99,6 +99,27 @@ export function renderCounterPage(): string {
   }
   .github:hover { border-color: #ff9d52; color: #ffe8d6; }
   .github svg { width: 1rem; height: 1rem; fill: currentColor; }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1rem;
+    font-size: 0.75rem;
+    color: #8a6a52;
+  }
+  .status .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 6px 1px rgba(74,222,128,0.7);
+  }
+  .status.down .dot {
+    background: #f87171;
+    box-shadow: 0 0 6px 1px rgba(248,113,113,0.7);
+    animation: none;
+  }
+  .version { margin-top: 0.25rem; font-size: 0.7rem; color: #6b4f3c; }
 </style>
 </head>
 <body>
@@ -108,15 +129,18 @@ export function renderCounterPage(): string {
   <h1>Cindermail</h1>
   <div class="stats">
     <div class="stat"><div class="n" id="created">-</div><div class="label">addresses created</div></div>
+    <div class="stat"><div class="n" id="received">-</div><div class="label">emails received</div></div>
     <div class="stat"><div class="n" id="torched">-</div><div class="label">torched</div></div>
   </div>
   <a class="github" href="https://github.com/Psalm2517/Cindermail" target="_blank" rel="noopener">
     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
     Source code
   </a>
+  <div class="status" id="status"><span class="dot"></span><span id="statusText">Connecting…</span></div>
+  <div class="version">v${version}</div>
 </main>
 <script>
-  let last = { created: null, torched: null };
+  let last = { created: null, torched: null, received: null };
 
   function setStat(id, value) {
     const el = document.getElementById(id);
@@ -129,15 +153,28 @@ export function renderCounterPage(): string {
     last[id] = value;
   }
 
+  function setStatus(ok) {
+    const status = document.getElementById('status');
+    const text = document.getElementById('statusText');
+    status.classList.toggle('down', !ok);
+    text.textContent = ok ? 'Live' : 'Reconnecting…';
+  }
+
   async function refresh() {
     try {
       const res = await fetch('/counters');
-      if (!res.ok) return;
+      if (!res.ok) {
+        setStatus(false);
+        return;
+      }
       const data = await res.json();
       setStat('created', data.created);
       setStat('torched', data.torched);
+      setStat('received', data.received);
+      setStatus(true);
     } catch {
-      // Next tick retries. Not worth surfacing a transient fetch failure here.
+      // Next tick retries, status pill already reflects the failure.
+      setStatus(false);
     }
   }
   refresh();
