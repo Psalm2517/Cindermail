@@ -12,7 +12,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "DISPOSABLE_DOMAIN": "vsvn.net",
-    "ADAPTERS": "discord"
+    "ADAPTERS": "discord",
+    "MAX_ACTIVE_ADDRESSES": "10"
   },
   "d1_databases": [
     {

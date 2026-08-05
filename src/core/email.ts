@@ -1,5 +1,5 @@
 import PostalMime, { type RawEmail } from "postal-mime";
-import { getAddress } from "./db.ts";
+import { getAddress, incrementReceivedCounter } from "./db.ts";
 import type { Dispatcher } from "./dispatch.ts";
 import type { SqlExecutor } from "./storage.ts";
 import type { OwnerRef, ParsedMail } from "./types.ts";
@@ -28,6 +28,7 @@ export async function handleInboundEmail(
   }
 
   const owner: OwnerRef = { type: row.owner_type, id: row.owner_id };
+  await incrementReceivedCounter(db);
 
   const parsed = await PostalMime.parse(message.raw, { attachmentEncoding: "arraybuffer" });
   const mail: ParsedMail = {
