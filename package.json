@@ -1,6 +1,6 @@
 {
   "name": "cinderbox",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A self-hosted disposable email service. Runs on Cloudflare Workers, your own server, or mail.tm with no domain at all; delivers via a pluggable adapter (Discord ships built in).",
   "license": "MIT",
   "type": "module",
