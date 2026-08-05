@@ -49,6 +49,26 @@ async function askDiscordCredentials(): Promise<Record<string, string>> {
   };
 }
 
+async function askLimits(): Promise<Record<string, string>> {
+  if (!(await confirm("\nCustomize limits (active addresses per owner, address expiry)?"))) {
+    return {};
+  }
+  const maxActive = await ask("  Max active addresses per owner", "5");
+  const ttlDays = await ask("  Address expiry, in days", "10");
+  console.log("  Rate limits (per-command call caps) aren't prompted here, the");
+  console.log("  defaults are fine for almost everyone. See docs/configuration.md");
+  console.log("  if you want to change those.");
+
+  const result: Record<string, string> = {};
+  if (maxActive) {
+    result.MAX_ACTIVE_ADDRESSES = maxActive;
+  }
+  if (ttlDays) {
+    result.ADDRESS_TTL_SECONDS = String(Number(ttlDays) * 86400);
+  }
+  return result;
+}
+
 async function setupEnvPath(mode: "mailtm" | "selfhost"): Promise<void> {
   let content = readFileSync(".env.example", "utf8");
 
@@ -65,6 +85,10 @@ async function setupEnvPath(mode: "mailtm" | "selfhost"): Promise<void> {
     if (value) {
       content = setEnvValue(content, key, value);
     }
+  }
+
+  for (const [key, value] of Object.entries(await askLimits())) {
+    content = setEnvValue(content, key, value);
   }
 
   if (!(await writeGuarded(".env", content))) {
@@ -98,6 +122,10 @@ async function setupCloudflare(): Promise<void> {
   const domain = await ask("\nDomain addresses get generated on (e.g. yourdomain.com)");
   if (domain) {
     content = content.replace(/^DISPOSABLE_DOMAIN = .*$/m, `DISPOSABLE_DOMAIN = "${domain}"`);
+  }
+
+  for (const [key, value] of Object.entries(await askLimits())) {
+    content = content.replace(/^(ADAPTERS = .*)$/m, `$1\n${key} = "${value}"`);
   }
 
   if (await confirm("\nRun `wrangler d1 create cinderbox` now?")) {
