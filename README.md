@@ -22,9 +22,9 @@ Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
 
-**What clicking it actually does:** forks this repo into your own Cloudflare account, creates a brand-new D1 database (it does not touch this project's own database), deploys the Worker, and prompts you to paste in `DISCORD_TOKEN`, `DISCORD_PUBLIC_KEY`, and `DISCORD_APPLICATION_ID` during the flow.
+**What this button does:** forks this repo into your own Cloudflare account, creates a brand-new D1 database (it does not touch this project's own database), deploys the Worker, and prompts you to paste in `DISCORD_TOKEN`, `DISCORD_PUBLIC_KEY`, and `DISCORD_APPLICATION_ID` during the flow.
 
-**What it does not do** — all still required after clicking it:
+**What this button doesn't do:** — all still required after clicking it:
 
 1. **Load the database schema.** The button doesn't run `schema.sql`. Your new database is empty until you run `npx wrangler d1 execute cinderbox --remote --file=schema.sql` yourself.
 2. **Set your own domain.** It deploys with whatever's already committed in [wrangler.jsonc](wrangler.jsonc) (this project's domain, address limits), not yours. Edit those in the Cloudflare dashboard afterward, under the Worker's Settings.
