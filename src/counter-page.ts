@@ -63,63 +63,59 @@ export function renderCounterPage(version: string): string {
     0%, 100% { text-shadow: 0 0 12px rgba(255,140,50,0.3); }
     50% { text-shadow: 0 0 22px rgba(255,140,50,0.6); }
   }
-  .stats { display: flex; gap: 2.5rem; justify-content: center; flex-wrap: wrap; }
-  .stat { min-width: 10rem; }
-  .stat .n {
-    font-size: 3rem;
-    font-weight: 700;
+  .panel { width: min(360px, 88vw); margin: 2rem auto 0; text-align: left; }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0.9rem;
+    margin-bottom: 0.9rem;
+    border-bottom: 1px solid #3a2013;
+    font-size: 0.9rem;
+    color: #e8c4a3;
+  }
+  .status .dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 6px 1px rgba(74,222,128,0.6);
+    flex-shrink: 0;
+  }
+  .status.down .dot {
+    background: #f87171;
+    box-shadow: 0 0 6px 1px rgba(248,113,113,0.6);
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #241209;
+    font-size: 0.9rem;
+  }
+  .row:last-of-type { border-bottom: none; }
+  .row .label { color: #c99b7a; }
+  .row .n {
     font-variant-numeric: tabular-nums;
+    font-weight: 600;
     color: #ffb877;
-    text-shadow: 0 0 24px rgba(255,120,40,0.35);
-    transition: text-shadow 0.3s, transform 0.3s;
+    transition: color 0.3s;
   }
-  .stat .n.bump {
-    text-shadow: 0 0 32px rgba(255,160,70,0.85);
-    transform: scale(1.08);
-  }
-  .stat .label {
-    margin-top: 0.4rem;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #c99b7a;
-  }
+  .row .n.bump { color: #fff2e2; }
   .github {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    margin-top: 2.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 999px;
-    border: 1px solid #4a2c18;
-    color: #ffcaa1;
+    margin-top: 1.25rem;
+    color: #a8785a;
     text-decoration: none;
-    font-size: 0.85rem;
-    transition: border-color 0.15s, color 0.15s;
+    font-size: 0.8rem;
+    transition: color 0.15s;
   }
-  .github:hover { border-color: #ff9d52; color: #ffe8d6; }
-  .github svg { width: 1rem; height: 1rem; fill: currentColor; }
-  .status {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-top: 1rem;
-    font-size: 0.75rem;
-    color: #8a6a52;
-  }
-  .status .dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: #4ade80;
-    box-shadow: 0 0 6px 1px rgba(74,222,128,0.7);
-  }
-  .status.down .dot {
-    background: #f87171;
-    box-shadow: 0 0 6px 1px rgba(248,113,113,0.7);
-    animation: none;
-  }
-  .version { margin-top: 0.25rem; font-size: 0.7rem; color: #6b4f3c; }
+  .github:hover { color: #ffcaa1; }
+  .github svg { width: 0.9rem; height: 0.9rem; fill: currentColor; }
+  .version { margin-top: 0.5rem; font-size: 0.7rem; color: #5c4432; }
 </style>
 </head>
 <body>
@@ -127,16 +123,16 @@ export function renderCounterPage(version: string): string {
 <main>
   <div class="flame">🔥</div>
   <h1>Cindermail</h1>
-  <div class="stats">
-    <div class="stat"><div class="n" id="created">-</div><div class="label">addresses created</div></div>
-    <div class="stat"><div class="n" id="received">-</div><div class="label">emails received</div></div>
-    <div class="stat"><div class="n" id="torched">-</div><div class="label">torched</div></div>
+  <div class="panel">
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">Connecting…</span></div>
+    <div class="row"><span class="label">Addresses created</span><span class="n" id="created">-</span></div>
+    <div class="row"><span class="label">Emails received</span><span class="n" id="received">-</span></div>
+    <div class="row"><span class="label">Torched</span><span class="n" id="torched">-</span></div>
   </div>
   <a class="github" href="https://github.com/Psalm2517/Cindermail" target="_blank" rel="noopener">
     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
     Source code
   </a>
-  <div class="status" id="status"><span class="dot"></span><span id="statusText">Connecting…</span></div>
   <div class="version">v${version}</div>
 </main>
 <script>
@@ -157,7 +153,7 @@ export function renderCounterPage(version: string): string {
     const status = document.getElementById('status');
     const text = document.getElementById('statusText');
     status.classList.toggle('down', !ok);
-    text.textContent = ok ? 'Live' : 'Reconnecting…';
+    text.textContent = ok ? 'All systems operational' : 'Unable to reach the service';
   }
 
   async function refresh() {
