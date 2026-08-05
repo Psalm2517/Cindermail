@@ -141,7 +141,7 @@ export function renderCounterPage(): string {
     }
   }
   refresh();
-  setInterval(refresh, 5000);
+  setInterval(refresh, 60 * 60 * 1000);
 
   // A handful of embers drifting up from the bottom of the screen, spaced
   // out on a stagger so they don't all rise in lockstep.
