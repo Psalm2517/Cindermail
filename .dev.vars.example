@@ -1,0 +1,8 @@
+# Used by the "Deploy to Cloudflare Workers" button to prompt for secrets
+# during setup. Not read at runtime -- actual secrets are set via
+# `wrangler secret put` (see docs/discord-adapter.md) or entered in the
+# button's own flow. Safe to leave as-is if you're not using the button.
+
+DISCORD_TOKEN=
+DISCORD_PUBLIC_KEY=
+DISCORD_APPLICATION_ID=

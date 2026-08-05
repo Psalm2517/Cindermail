@@ -4,6 +4,8 @@ This covers getting mail received and stored. It has nothing to do with Discord,
 
 This path needs a domain you own. If you'd rather not deal with one, [deploy-mailtm.md](deploy-mailtm.md) needs no domain, DNS, or server. `npm run setup` handles the `wrangler.jsonc` and D1 parts of steps 1 and 2 below for you if you do want this path.
 
+There's also a [Deploy to Cloudflare button](../README.md#deploy-to-cloudflare) if you'd rather skip the local clone entirely. It provisions its own D1 database and prompts for the Discord secrets, but it deploys with this repo's committed domain and address limits, so still read step 2 and step 3 below to know what to go change afterward, and steps 4-5 for Email Routing and Discord command registration, which it doesn't do for you.
+
 ## What you need
 
 - Node.js 18 or newer, just for running these commands locally. Nothing runs on your own machine once deployed.
