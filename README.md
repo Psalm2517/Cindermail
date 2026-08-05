@@ -16,18 +16,26 @@ Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets
 
 ![Example delivery](docs/images/example-dm.png)
 
+## Quick start
+
+```bash
+npm install && npm run setup
+```
+
+Asks which way you want to receive mail, then writes the config file for you. The default path needs no domain, no DNS, and no server.
+
 ## Two moving parts
 
 A core that generates addresses, tracks who owns them, parses incoming mail, and doesn't care where any of it came from or where it's going. Two things plug into it:
 
-- **Where mail comes from.** Cloudflare (Email Routing + D1), your own server (SMTP + SQLite), or mail.tm (no domain, no server).
+- **Where mail comes from.** mail.tm (no domain, no server), your own server (SMTP + SQLite), or Cloudflare (Email Routing + D1). The last two run addresses on a domain you own.
 - **Where mail goes.** Discord.
 
 ## Setup guides
 
-- **[Cloudflare Workers](docs/deploy-cloudflare.md)**: no server to run, just a Cloudflare account and a domain.
+- **[mail.tm](docs/deploy-mailtm.md)**: quickest, no domain or server at all. Read the caveat in that guide first, mail.tm's domain is a known temp-mail domain and some signup forms block it.
+- **[Cloudflare Workers](docs/deploy-cloudflare.md)**: your own domain, no server to run, just a Cloudflare account.
 - **[Self-hosted](docs/deploy-selfhost.md)**: your own machine, your own domain, your own uptime.
-- **[mail.tm](docs/deploy-mailtm.md)**: no domain or server at all. Read the caveat in that guide first, mail.tm's domain is a known temp-mail domain and some signup forms block it.
 - **[Discord setup](docs/discord-adapter.md)**: same steps regardless of which of the above you picked. Commands (`/new` `/list` `/extend` `/torch`) are documented there.
 
 ## How it works

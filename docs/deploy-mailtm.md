@@ -12,6 +12,8 @@ Read this before picking it: addresses on mail.tm's domain are recognizable as a
 
 You do still need one thing every other path also needs: a public HTTPS URL for Discord's interactions webhook. See step 3 below, it's the same requirement as the self-hosted path for the same reason.
 
+`npm run setup` does steps 1 through 3 below interactively if you'd rather not do them by hand. The rest of this guide is what it's doing on your behalf, and what to do once it's finished.
+
 ## 1. Clone and install
 
 ```bash

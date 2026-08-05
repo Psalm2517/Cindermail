@@ -2,6 +2,8 @@
 
 This covers getting mail received and stored on a machine you control, with no Cloudflare account involved at all. Discord setup is a separate step in [discord-adapter.md](discord-adapter.md), same as the Cloudflare path, do that once this part's working.
 
+This path needs a domain you own and a machine that can receive on port 25. If you'd rather not deal with either, [deploy-mailtm.md](deploy-mailtm.md) needs neither. `npm run setup` handles the `.env` parts of steps 1 and 3 below for you if you do want this path.
+
 ## What you need
 
 - Node.js 18 or newer, or Docker.
