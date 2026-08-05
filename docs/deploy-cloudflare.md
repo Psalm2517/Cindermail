@@ -2,6 +2,8 @@
 
 This covers getting mail received and stored. It has nothing to do with Discord, that's a separate step in [discord-adapter.md](discord-adapter.md) you'll do once this part is working, regardless of which hosting path you picked.
 
+This path needs a domain you own. If you'd rather not deal with one, [deploy-mailtm.md](deploy-mailtm.md) needs no domain, DNS, or server. `npm run setup` handles the `wrangler.toml` and D1 parts of steps 1 and 2 below for you if you do want this path.
+
 ## What you need
 
 - Node.js 18 or newer, just for running these commands locally. Nothing runs on your own machine once deployed.
