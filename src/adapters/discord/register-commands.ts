@@ -1,22 +1,28 @@
 // Standalone script, not part of the Worker bundle.
 // Run with: DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... node --experimental-strip-types src/adapters/discord/register-commands.ts
 
+import { MAX_EXPIRY_DAYS, MAX_NOTE_LENGTH } from "./interactions.ts";
+
 const token = process.env.DISCORD_TOKEN;
 const applicationId = process.env.DISCORD_APPLICATION_ID;
 
 if (!token || !applicationId) {
   console.error("DISCORD_TOKEN and DISCORD_APPLICATION_ID must be set in the environment.");
+  console.error("");
+  console.error("These live in Cloudflare as encrypted secrets, which can't be read back,");
+  console.error("so pass them from your own copy, e.g.:");
+  console.error("  DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... npm run register-commands");
   process.exit(1);
 }
 
 const GUILD_AND_USER_INSTALL = [0, 1];
 const ALL_CONTEXTS = [0, 1, 2];
 
-// Discord option type 4 is INTEGER, 3 is STRING. min_value/max_value make
-// Discord reject out-of-range input in its own UI before it ever reaches the
-// Worker; interactions.ts validates again anyway.
-const MAX_EXPIRY_DAYS = 3650;
-const MAX_NOTE_LENGTH = 80;
+// Discord option type 4 is INTEGER, 3 is STRING. min_value/max_value/
+// max_length make Discord reject out-of-range input in its own UI before it
+// ever reaches the Worker; interactions.ts validates again anyway. The
+// bounds are imported from there so the two can't drift apart and leave
+// Discord accepting something the Worker rejects.
 
 const commands = [
   {

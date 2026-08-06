@@ -29,6 +29,14 @@ src/counter-page.ts    The status page's HTML, inlined, no external assets.
 
 Everything else, commands, storage, delivery, cleanup, the status page, is identical between them.
 
+## Tests
+
+```bash
+npm test
+```
+
+Node's built-in runner against a real in-memory SQLite database, no dependencies and no mocks: D1 speaks the same dialect, and `src/storage/d1.ts` implements the same `SqlExecutor` interface these run through. Covers markdown escaping of delivered mail, the expiry and note command semantics, counter behaviour (including that a missing `counters` table can't stop mail being delivered), and that `schema.sql` agrees with the migration chain.
+
 ## Extending it
 
 **Delivery adapter.** Implement `MailAdapter` in `src/core/types.ts`: a `name`, and a `deliver(owner, mail)` that returns `{ success, error? }` and never throws. Register it in `buildAdapters()` in `src/worker.ts`.

@@ -54,7 +54,7 @@ A daily cron clears expired and torched addresses along with stale rate-limit ro
 - Inbound HTML caps at 256KB before parsing (parsing cost scales quadratically with input, and addresses are reachable by anyone who learns one).
 - Attachments forward individually up to 25MB combined per email. Over budget gets dropped with a note, not the whole batch.
 
-Code layout and how to add a delivery adapter: [docs/architecture.md](docs/architecture.md). Every setting: [docs/configuration.md](docs/configuration.md).
+Code layout, tests, and how to add a delivery adapter: [docs/architecture.md](docs/architecture.md). Every setting: [docs/configuration.md](docs/configuration.md).
 
 ## License
 

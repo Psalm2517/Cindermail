@@ -27,14 +27,16 @@ export type CreateAddressFn = (
   note: string | null
 ) => Promise<string>;
 
-// Matches max_length on the registered `note` option. Long enough to be a
-// useful label, short enough that /list stays scannable.
-const MAX_NOTE_LENGTH = 80;
-
-// The largest expiry we'll accept, in days. Beyond this the seconds value
-// starts approaching the point where it stops being a meaningful timestamp,
-// and anyone wanting longer than this wants a permanent address anyway.
-const MAX_EXPIRY_DAYS = 3650;
+// Also applied by Discord itself via max_length/max_value on the registered
+// commands (register-commands.ts imports these), so out-of-range input is
+// normally rejected in its UI before reaching the Worker. Enforced here too
+// for anything that arrives another way.
+//
+// A note is long enough to be a useful label, short enough that /list stays
+// scannable. Past MAX_EXPIRY_DAYS an expiry stops being a meaningful date,
+// and anyone wanting longer wants a permanent address anyway.
+export const MAX_NOTE_LENGTH = 80;
+export const MAX_EXPIRY_DAYS = 3650;
 
 interface DiscordInteractionOption {
   name: string;
@@ -65,6 +67,16 @@ function getInvokingUserId(interaction: DiscordInteraction): string | null {
 function getOption(interaction: DiscordInteraction, name: string): string | undefined {
   const value = interaction.data?.options?.find((o) => o.name === name)?.value;
   return typeof value === "string" ? value : undefined;
+}
+
+// Addresses are stored lowercase (generated from a fixed lowercase alphabet,
+// and core/email.ts lowercases inbound recipients before looking them up), so
+// commands have to normalise too. Phone keyboards autocapitalise the first
+// letter and copy/paste picks up stray whitespace, and without this both come
+// back as "Not found or not yours", which reads like an ownership problem
+// rather than a typo.
+function getAddressOption(interaction: DiscordInteraction): string | undefined {
+  return getOption(interaction, "address")?.trim().toLowerCase();
 }
 
 // Discord sends numbers for INTEGER options. Undefined means the option was
@@ -149,17 +161,17 @@ export async function handleInteraction(
     case "list":
       return handleList(db, owner);
     case "note":
-      return handleNote(db, owner, getOption(interaction, "address"), getOption(interaction, "note") ?? "");
+      return handleNote(db, owner, getAddressOption(interaction), getOption(interaction, "note") ?? "");
     case "extend":
       return handleExtend(
         db,
         owner,
-        getOption(interaction, "address"),
+        getAddressOption(interaction),
         config,
         getIntegerOption(interaction, "expiry")
       );
     case "torch":
-      return handleTorch(db, owner, getOption(interaction, "address"));
+      return handleTorch(db, owner, getAddressOption(interaction));
     default:
       return ephemeralReply("Unknown command.");
   }

@@ -51,7 +51,12 @@ export async function sendMessage(
   channelId: string,
   payload: SendMessagePayload
 ): Promise<void> {
-  const base = { content: payload.content ?? "" };
+  // Delivered mail is attacker-controlled text. Escaping handles markdown,
+  // but @ mentions aren't escapable, so this tells Discord to resolve none of
+  // them: an "@everyone" in an email body still shows as text and pings
+  // nobody. Belt and braces, since the bot delivers to DMs where a mention
+  // wouldn't notify anyone anyway.
+  const base = { content: payload.content ?? "", allowed_mentions: { parse: [] as string[] } };
 
   if (!payload.files || payload.files.length === 0) {
     await discordFetch(botToken, `/channels/${channelId}/messages`, {

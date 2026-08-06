@@ -290,8 +290,11 @@ const EMPTY_COUNTERS: Counters = { created: 0, torched: 0, received: 0, users: 0
 // page labels it that way.
 async function countOwners(db: SqlExecutor): Promise<number> {
   const now = Math.floor(Date.now() / 1000);
+  // Distinct on (owner_type, owner_id), not owner_id alone: ids are only
+  // unique within an adapter, so a second adapter would otherwise merge two
+  // different people who happened to share an id.
   const row = await db.first<{ count: number }>(
-    `SELECT COUNT(DISTINCT owner_id) as count FROM addresses
+    `SELECT COUNT(DISTINCT owner_type || ':' || owner_id) as count FROM addresses
      WHERE revoked = 0 AND (permanent = 1 OR expires_at > ?)`,
     now
   );

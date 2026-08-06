@@ -1,6 +1,6 @@
 import type { DeliveryResult, MailAdapter, OwnerRef, ParsedMail } from "../../core/types.ts";
 import { createDM, DiscordApiError, sendMessage, type DiscordFile } from "./discord-rest.ts";
-import { htmlToText } from "./html-to-text.ts";
+import { escapeMarkdown, htmlToText } from "./html-to-text.ts";
 
 const DISCORD_MESSAGE_CAP = 2000;
 const INLINE_BODY_CAP = 1500;
@@ -45,15 +45,24 @@ export function createDiscordAdapter(botToken: string): MailAdapter {
       try {
         const channel = await createDM(botToken, owner.id);
 
-        const header = `**From:** ${mail.from}\n**To:** ${mail.to}\n**Subject:** ${mail.subject}\n`;
+        // Sender and subject are attacker-controlled and go straight into a
+        // markdown-rendered message, so they get the same escaping the body
+        // does. mail.to is ours, generated from a fixed alphabet.
+        const header = `**From:** ${escapeMarkdown(mail.from)}\n**To:** ${mail.to}\n**Subject:** ${escapeMarkdown(
+          mail.subject
+        )}\n`;
         const files: DiscordFile[] = [];
         const notes: string[] = [];
 
         // The text/plain part (if any) is not trustworthy on its own. Some senders
         // populate it with raw HTML or other markup instead of real plain text. When
         // an HTML part exists, always derive the readable body from it directly.
+        //
+        // htmlToText escapes markdown itself (it has to, since it splices real
+        // link syntax in afterward). A plain-text part has had nothing done to
+        // it at all, so it gets escaped here.
         const html = mail.html && mail.html.length > MAX_HTML_LENGTH ? mail.html.slice(0, MAX_HTML_LENGTH) : mail.html;
-        const readableText = html ? htmlToText(html) : mail.text;
+        const readableText = html ? htmlToText(html) : escapeMarkdown(mail.text);
         let bodyText = readableText;
 
         if (readableText.length > INLINE_BODY_CAP) {

@@ -71,15 +71,17 @@ const HIDDEN_ELEMENT_CANDIDATE =
   /<(span|div|td|p)\b(?=[^>]*\b(?:class\s*=\s*["'][^"']*(?:sr-only|screen-?reader|visually-?hidden|assistive)[^"']*["']|style\s*=\s*["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0)[^"']*["']))[^>]*>[\s\S]*?<\/\1>/gi;
 const HIDDEN_ELEMENT_MAX_LENGTH = 300;
 
-// Placeholders standing in for the <> a link's URL gets wrapped in, which
-// suppresses Discord's separate auto-embed link-preview card. The generic
-// tag-stripping pass later in the pipeline would otherwise mistake a
-// literal "<url>" for an HTML tag and delete it, so real angle brackets are
-// swapped in only as the final step, once no more tag-stripping will run.
-const ANGLE_OPEN = "\uE000";
-const ANGLE_CLOSE = "\uE001";
+// Extracted link URLs are held out of the text entirely and spliced back in
+// as the very last step, wrapped in <> to suppress Discord's auto-embed
+// preview card. Keeping them out of the pipeline means the tag-stripping
+// pass can't mistake a literal "<url>" for an HTML tag and delete it, and
+// the markdown escaping can't corrupt the URL itself. Private-use
+// codepoints, so nothing in real mail collides with them.
+const URL_SLOT_OPEN = "\uE000";
+const URL_SLOT_CLOSE = "\uE001";
+const URL_SLOT = /\uE000(\d+)\uE001/g;
 
-function replaceLinks(text: string): string {
+function replaceLinks(text: string, urls: string[]): string {
   const seenUrls = new Set<string>();
 
   return text.replace(ANCHOR_TAG, (match, href: string, inner: string) => {
@@ -92,7 +94,10 @@ function replaceLinks(text: string): string {
       return "";
     }
 
-    const url = href.trim();
+    // Decoded here rather than by the pipeline's later pass, since the URL
+    // leaves the text at this point and never goes through it. Query strings
+    // routinely carry &amp; that has to come back as &.
+    const url = decodeEntities(href.trim());
     if (!url || url.startsWith("#") || url.toLowerCase().startsWith("javascript:")) {
       return label;
     }
@@ -104,17 +109,37 @@ function replaceLinks(text: string): string {
     }
     seenUrls.add(url);
 
-    return `${label} (${ANGLE_OPEN}${url}${ANGLE_CLOSE})`;
+    urls.push(url);
+    return `${label} ${URL_SLOT_OPEN}${urls.length - 1}${URL_SLOT_CLOSE}`;
   });
 }
 
+// Discord renders markdown in bot messages, and every part of an email is
+// attacker-controlled: anyone who learns an address can send to it. Without
+// this, a body (or an anchor's own label) containing
+// `[www.yourbank.com](https://evil.example)` arrives as a clickable link
+// whose visible text lies about its destination.
+//
+// Escaping [ and ] alone is what defeats that, since a masked link needs
+// both. The formatting characters are escaped too so a sender can't mangle
+// the message's presentation. Deliberately left alone: parentheses, hyphens,
+// # and >, which are common in ordinary prose and at worst cosmetic here.
+// Backslash goes first so it can't be used to undo the rest.
+const MARKDOWN_SPECIALS = /([\\`*_~|[\]])/g;
+
+export function escapeMarkdown(text: string): string {
+  return text.replace(MARKDOWN_SPECIALS, "\\$1");
+}
+
 export function htmlToText(html: string): string {
+  const urls: string[] = [];
+
   let text = html
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, "")
     .replace(HIDDEN_ELEMENT_CANDIDATE, (match) => (match.length <= HIDDEN_ELEMENT_MAX_LENGTH ? "" : match));
 
-  text = replaceLinks(text);
+  text = replaceLinks(text, urls);
 
   text = text
     .replace(BREAK_TAGS, "\n")
@@ -128,13 +153,18 @@ export function htmlToText(html: string): string {
   text = decodeEntities(text);
   text = text.replace(INVISIBLE_CHARS, "");
 
-  text = text.split(ANGLE_OPEN).join("<").split(ANGLE_CLOSE).join(">");
-
-  return text
+  text = text
     .split("\n")
     .map((line) => line.replace(/[ \t]+/g, " ").trim())
     .filter((line, i, lines) => line.length > 0 || (i > 0 && (lines[i - 1]?.length ?? 0) > 0))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+  // Escaping runs after entity decoding (so &#91; can't smuggle in an
+  // unescaped bracket) and before the URLs are spliced back, so the real
+  // destinations are never mangled by it.
+  text = escapeMarkdown(text);
+
+  return text.replace(URL_SLOT, (_match, index: string) => `(<${urls[Number(index)] ?? ""}>)`);
 }
