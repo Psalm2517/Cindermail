@@ -14,52 +14,36 @@
 
 ---
 
-Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets sent to it is parsed, cleaned up, and delivered to you. Torch it when you're done.
+Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets sent to it is parsed, cleaned up, and delivered to your Discord DMs. Torch it when you're done.
 
 ![Example delivery](docs/images/example-dm.png)
 
-## Pick a setup
+Addresses live on **a domain you own**, so unlike public temp-mail services nothing recognizes them as disposable and blocks them. Mail lands in **Discord**, not another inbox you have to remember to check. It all runs on **Cloudflare's free tier**: Email Routing receives, D1 stores, one Worker does the rest. There's no server to keep alive.
 
-Three ways to run it. All three deliver to Discord identically, the difference is only where addresses live and where the code runs.
+No domain? It runs on mail.tm's domain instead, with nothing to buy. Same Worker, one setting.
 
-| | Addresses on | Runs on | You need |
-|---|---|---|---|
-| **[Cloudflare](docs/deploy-cloudflare.md)** | your domain | Cloudflare | a domain, a Cloudflare account |
-| **[Cloudflare, mail.tm mode](docs/deploy-cloudflare.md#mailtm-mode-no-domain)** | mail.tm's domain | Cloudflare | a Cloudflare account |
-| **[Self-hosted](docs/deploy-selfhost.md)** | your domain | your own machine | a domain, a server, port 25 |
+## Deploy
 
-The two Cloudflare rows are the same Worker and the same guide. One setting (`DISPOSABLE_DOMAIN`) decides which mode it runs in, so you can switch later without redeploying.
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
 
-**No domain?** Use mail.tm mode. Its one real drawback: mail.tm is a known disposable-mail provider, so some signup forms recognize and block its domain. Running your own domain is what avoids that.
+One click gets you a Worker and a database. It doesn't finish the job on its own: you still need to load the schema, point `DISPOSABLE_DOMAIN` at your domain (or clear it for mail.tm mode), wire up Email Routing, and register the Discord commands.
 
-**Don't want Cloudflare?** Self-hosted is the only path with no Cloudflare account at all.
-
-## Quick start
+Prefer to do it locally, or want the wizard to handle the config?
 
 ```bash
 npm install && npm run setup
 ```
 
-Asks which of the three you want, then writes the config file for you.
-
-Or skip the clone entirely and deploy straight to Cloudflare:
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
-
-The button creates a D1 database and prompts for your Discord secrets, but it does not finish the job. Four things are still on you afterward, and none are optional: load the schema, set (or clear) `DISPOSABLE_DOMAIN` to pick a mode, wire up Email Routing if you chose a domain, and register the Discord commands. [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) covers all four in order.
-
-## Then set up Discord
-
-Every path ends the same way: [docs/discord-adapter.md](docs/discord-adapter.md). That's where the commands (`/new` `/list` `/extend` `/torch`) are documented too.
+Either way, [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) is the walkthrough, then [docs/discord-adapter.md](docs/discord-adapter.md) for the Discord side and the commands (`/new` `/list` `/extend` `/torch`).
 
 ## How it works
 
 1. `/new` generates a random address and ties it to whoever ran the command.
 2. Give that address to whatever's asking for an email, a signup form, a newsletter, whatever. Mail sent to it always comes back to you, not wherever you gave it out.
-3. Mail arrives. The receiver looks up the owner. Missing, expired, or torched: dropped, no bounce, nothing logged.
+3. Mail arrives. The Worker looks up the owner. Missing, expired, or torched: dropped, no bounce, nothing logged.
 4. Valid: the mail gets parsed (HTML to readable text, links intact, attachments forwarded) and delivered.
 
-Daily cleanup clears expired/torched addresses and stale rate-limit rows, on every path.
+A daily cron clears expired and torched addresses along with stale rate-limit rows.
 
 ## Limits
 
@@ -68,7 +52,7 @@ Daily cleanup clears expired/torched addresses and stale rate-limit rows, on eve
 - Inbound HTML caps at 256KB before parsing (parsing cost scales quadratically with input, and addresses are reachable by anyone who learns one).
 - Attachments forward individually up to 25MB combined per email. Over budget gets dropped with a note, not the whole batch.
 
-Code layout and how to add an adapter or backend: [docs/architecture.md](docs/architecture.md).
+Code layout and how to add a delivery adapter: [docs/architecture.md](docs/architecture.md). Every setting: [docs/configuration.md](docs/configuration.md).
 
 ## License
 

@@ -1,8 +1,6 @@
 # Setting up the Discord adapter
 
-This is the same regardless of whether you're on Cloudflare or self-hosting. It's the step that actually gets mail delivered to you, everything in the two hosting guides only gets mail as far as "received and stored."
-
-You should have already finished one of [deploy-cloudflare.md](deploy-cloudflare.md) or [deploy-selfhost.md](deploy-selfhost.md) before starting this.
+This is the step that actually gets mail delivered to you. [deploy-cloudflare.md](deploy-cloudflare.md) only gets mail as far as "received and stored," so finish that first. It's the same either way, domain mode or mail.tm mode.
 
 ## 1. Create a Discord application
 
@@ -16,19 +14,13 @@ From the General Information and Bot tabs, grab three values:
 
 ## 2. Give it those credentials
 
-**If you're on Cloudflare:**
-
 ```bash
 npx wrangler secret put DISCORD_TOKEN
 npx wrangler secret put DISCORD_PUBLIC_KEY
 npx wrangler secret put DISCORD_APPLICATION_ID
 ```
 
-Each one prompts you to paste the value in.
-
-**If you're self-hosting:**
-
-Open the `.env` file you created earlier and fill in `DISCORD_TOKEN`, `DISCORD_PUBLIC_KEY`, and `DISCORD_APPLICATION_ID`. Restart the process (`npm start`, or restart the container) so it picks them up.
+Each one prompts you to paste the value in. They're stored encrypted by Cloudflare, never written to a file in this repo. `npm run setup` offers to run these three for you.
 
 ## 3. Register the slash commands
 
@@ -42,12 +34,13 @@ This registers `/new`, `/list`, `/extend`, and `/torch` with Discord. It only ne
 
 ## 4. Point Discord at your interactions endpoint
 
-Back in the Discord Developer Portal, on the General Information tab, set the Interactions Endpoint URL:
+Back in the Discord Developer Portal, on the General Information tab, set the Interactions Endpoint URL to your Worker's URL plus `/interactions`:
 
-- **Cloudflare:** `https://<your-worker>.<your-subdomain>.workers.dev/interactions`
-- **Self-hosted:** the HTTPS URL from your reverse proxy or tunnel, plus `/interactions`
+```
+https://<your-worker>.<your-subdomain>.workers.dev/interactions
+```
 
-Discord verifies this by sending a signed ping the moment you save it. If that fails, it's almost always one of two things: the `DISCORD_PUBLIC_KEY` you set doesn't match the app's actual Verify Key, or your endpoint isn't reachable yet (DNS hasn't propagated, the reverse proxy isn't up, that kind of thing).
+Discord verifies this by sending a signed ping the moment you save it. If that fails, it's almost always one of two things: the `DISCORD_PUBLIC_KEY` you set doesn't match the app's actual Verify Key, or the Worker isn't deployed yet.
 
 ## 5. Try it
 

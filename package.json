@@ -1,7 +1,7 @@
 {
   "name": "cinderbox",
   "version": "0.3.0",
-  "description": "A self-hosted disposable email service. Runs on Cloudflare Workers, your own server, or mail.tm with no domain at all; delivers via a pluggable adapter (Discord ships built in).",
+  "description": "Disposable email addresses on your own domain, delivered to Discord. Runs on Cloudflare Workers with Email Routing and D1, or on mail.tm with no domain at all.",
   "license": "MIT",
   "type": "module",
   "private": true,
@@ -13,8 +13,6 @@
     "cf:deploy": "wrangler deploy",
     "cf:db:init": "wrangler d1 execute cinderbox --remote --file=schema.sql",
     "cf:db:init:local": "wrangler d1 execute cinderbox --local --file=schema.sql",
-    "start": "node --experimental-strip-types src/node/index.ts",
-    "start:mailtm": "node --experimental-strip-types src/receivers/mailtm/run.ts",
     "banner": "node --experimental-strip-types src/banner.ts"
   },
   "cloudflare": {
@@ -31,20 +29,16 @@
     "email-routing",
     "discord-bot",
     "cloudflare-workers",
-    "self-hosted",
+    "cloudflare-d1",
     "mail.tm"
   ],
   "dependencies": {
-    "better-sqlite3": "^13.0.2",
     "discord-interactions": "^4.4.0",
-    "postal-mime": "^2.7.5",
-    "smtp-server": "^3.19.2"
+    "postal-mime": "^2.7.5"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260801.1",
-    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.1.2",
-    "@types/smtp-server": "^3.5.13",
     "typescript": "^7.0.2",
     "wrangler": "^4.118.0"
   }

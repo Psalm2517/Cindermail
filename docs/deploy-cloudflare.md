@@ -116,4 +116,4 @@ npx wrangler d1 execute cinderbox --remote --file=migrations/0004_add_counters.s
 npx wrangler d1 execute cinderbox --remote --file=migrations/0005_add_received_counter.sql
 ```
 
-`0003` is what `/new permanent:` and `/extend permanent:` need, `0004` and `0005` are the status page's totals. Self-hosted deployments apply the same files against their SQLite database instead.
+`0003` is what `/new permanent:` and `/extend permanent:` need, `0004` and `0005` are the status page's totals.
