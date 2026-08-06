@@ -124,5 +124,27 @@ export function createDiscordAdapter(botToken: string): MailAdapter {
         return { success: false, error: err instanceof Error ? err.message : String(err) };
       }
     },
+
+    // A message from the bot itself, not a forwarded email, so it skips the
+    // From/To/Subject header and the attachment handling entirely. The
+    // message is composed by us rather than by a sender, so it isn't escaped:
+    // the only external text in it is an address note, which core escapes
+    // before it gets here.
+    async notify(owner: OwnerRef, message: string): Promise<DeliveryResult> {
+      try {
+        const channel = await createDM(botToken, owner.id);
+        const content =
+          message.length > DISCORD_MESSAGE_CAP
+            ? truncateAtLineBoundary(message, DISCORD_MESSAGE_CAP - 1) + "…"
+            : message;
+        await sendMessage(botToken, channel.id, { content });
+        return { success: true };
+      } catch (err) {
+        if (err instanceof DiscordApiError) {
+          return { success: false, error: err.message };
+        }
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
   };
 }

@@ -115,6 +115,7 @@ npx wrangler d1 execute cinderbox --remote --file=migrations/0003_add_permanent.
 npx wrangler d1 execute cinderbox --remote --file=migrations/0004_add_counters.sql
 npx wrangler d1 execute cinderbox --remote --file=migrations/0005_add_received_counter.sql
 npx wrangler d1 execute cinderbox --remote --file=migrations/0006_add_note.sql
+npx wrangler d1 execute cinderbox --remote --file=migrations/0007_add_expiry_reminders.sql
 ```
 
-`0003` is what permanent addresses need, `0004` and `0005` are the status page's totals, `0006` is address notes. Re-run `npm run register-commands` afterward so Discord picks up any new command options.
+`0003` is what permanent addresses need, `0004` and `0005` are the status page's totals, `0006` is address notes, `0007` is opt-in expiry reminders. Re-run `npm run register-commands` afterward so Discord picks up any new command options.

@@ -19,7 +19,11 @@ const RAW_MAIL = "From: s@e.com\r\nTo: x\r\nSubject: t\r\n\r\nbody";
 function capturingAdapter(): { adapter: MailAdapter; delivered: () => number } {
   let count = 0;
   return {
-    adapter: { name: "discord", deliver: async () => { count++; return { success: true }; } },
+    adapter: {
+      name: "discord",
+      deliver: async () => { count++; return { success: true }; },
+      notify: async () => ({ success: true }),
+    },
     delivered: () => count,
   };
 }
@@ -172,6 +176,7 @@ test("schema.sql matches the migration chain", () => {
     "0004_add_counters.sql",
     "0005_add_received_counter.sql",
     "0006_add_note.sql",
+    "0007_add_expiry_reminders.sql",
   ]) {
     upgraded.exec(migrationFile(name));
   }
@@ -181,7 +186,7 @@ test("schema.sql matches the migration chain", () => {
       .map((c) => `${c.name}:${c.type}:${c.notnull}:${c.dflt_value}`)
       .sort();
 
-  for (const table of ["addresses", "rate_limits", "counters"]) {
+  for (const table of ["addresses", "rate_limits", "counters", "owner_preferences"]) {
     assert.deepEqual(columns(upgraded, table), columns(fresh, table), `${table} differs`);
   }
   assert.deepEqual(upgraded.prepare("SELECT * FROM counters").all(), fresh.prepare("SELECT * FROM counters").all());

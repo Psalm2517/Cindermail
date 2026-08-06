@@ -111,6 +111,22 @@ const commands = [
       },
     ],
   },
+  {
+    name: "remind",
+    description: "Get a DM about a day before an address expires",
+    integration_types: GUILD_AND_USER_INSTALL,
+    contexts: ALL_CONTEXTS,
+    options: [
+      {
+        // Type 5 is BOOLEAN. Optional on purpose: omitting it reports the
+        // current setting rather than changing it.
+        type: 5,
+        name: "enabled",
+        description: "On or off. Leave blank to see the current setting.",
+        required: false,
+      },
+    ],
+  },
 ];
 
 async function main() {

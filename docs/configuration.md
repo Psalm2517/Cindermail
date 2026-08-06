@@ -11,10 +11,10 @@ Non-secret values go in `wrangler.jsonc` under `vars`. Secrets go through `wrang
 | `DISCORD_APPLICATION_ID` | yes | required, no default | Used by `register-commands.ts`. |
 | `MAX_ACTIVE_ADDRESSES` | no | `5` | How many addresses one owner can have active at the same time. |
 | `ADDRESS_TTL_SECONDS` | no | `864000` (10 days) | What a bare `/extend` uses when no `expiry` is given. `/new` is permanent by default and ignores this unless an explicit `expiry` is passed. |
-| `RATE_LIMIT_<CMD>_WINDOW_SECONDS` | no | see below | Window length for a given command's rate limit. `<CMD>` is one of `NEW`, `LIST`, `EXTEND`, `TORCH`, `NOTE`. |
+| `RATE_LIMIT_<CMD>_WINDOW_SECONDS` | no | see below | Window length for a given command's rate limit. `<CMD>` is one of `NEW`, `LIST`, `EXTEND`, `TORCH`, `NOTE`, `REMIND`. |
 | `RATE_LIMIT_<CMD>_MAX` | no | see below | Max calls allowed per window. Set this to `0` and that command's rate limit is disabled entirely. |
 
-Rate limit defaults: `NEW` is 30 seconds and 1 call, `LIST`, `EXTEND`, `TORCH`, and `NOTE` are each 60 seconds and 15 calls.
+Rate limit defaults: `NEW` is 30 seconds and 1 call, `LIST`, `EXTEND`, `TORCH`, `NOTE`, and `REMIND` are each 60 seconds and 15 calls.
 
 These limits exist to keep a deployment other people can reach from getting hammered. They aren't safety rails baked in for your own protection, so there's no reason to leave them on if you don't want them. Worth knowing though: they're already scoped per owner, not shared across everyone using the bot, so if you're running this just for yourself you probably won't ever notice them even at the defaults. If you do want them gone anyway, set every `RATE_LIMIT_*_MAX` to `0`.
 

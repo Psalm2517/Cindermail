@@ -49,6 +49,7 @@ export function buildCommandConfig(env: Record<string, string | undefined>): Com
       extend: rateLimitFromEnv(env, "RATE_LIMIT_EXTEND", 60, 15),
       torch: rateLimitFromEnv(env, "RATE_LIMIT_TORCH", 60, 15),
       note: rateLimitFromEnv(env, "RATE_LIMIT_NOTE", 60, 15),
+      remind: rateLimitFromEnv(env, "RATE_LIMIT_REMIND", 60, 15),
     },
   };
 }

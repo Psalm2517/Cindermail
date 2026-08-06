@@ -39,6 +39,6 @@ Node's built-in runner against a real in-memory SQLite database, no dependencies
 
 ## Extending it
 
-**Delivery adapter.** Implement `MailAdapter` in `src/core/types.ts`: a `name`, and a `deliver(owner, mail)` that returns `{ success, error? }` and never throws. Register it in `buildAdapters()` in `src/worker.ts`.
+**Delivery adapter.** Implement `MailAdapter` in `src/core/types.ts`: a `name`, a `deliver(owner, mail)` for forwarded email, and a `notify(owner, message)` for plain messages from the bot itself (expiry reminders). Both return `{ success, error? }` and never throw. Register it in `buildAdapters()` in `src/worker.ts`.
 
 **Storage backend.** Implement `SqlExecutor` in `src/core/storage.ts`. Call `handleInboundEmail({ to, from, raw }, db, dispatcher)` from `core/email.ts` for each piece of mail. `raw` takes a `Buffer`, `ReadableStream`, or string, whatever `postal-mime` accepts.
