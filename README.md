@@ -60,8 +60,6 @@ Every reply is ephemeral, visible only to whoever ran the command. Full details 
 
 A daily cron clears expired and torched addresses along with stale rate-limit rows, and sends expiry reminders to anyone who asked for them.
 
-Everything in an inbound email is treated as hostile, since anyone who learns an address can send to it. Markdown is escaped so a message can't arrive as a link claiming to be your bank while pointing elsewhere, links from HTML mail show their real destination, and mentions can't ping.
-
 The Worker also serves a small status page at its root with running totals, plus the same numbers as JSON at `/counters`. No addresses or owners are exposed, just counts.
 
 ## Limits
