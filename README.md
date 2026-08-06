@@ -36,7 +36,20 @@ Prefer to do it locally, or want the wizard to handle the config?
 npm install && npm run setup
 ```
 
-Either way, [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) is the walkthrough, then [docs/discord-adapter.md](docs/discord-adapter.md) for the Discord side and the commands (`/new` `/list` `/extend` `/torch`).
+Either way, [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) is the walkthrough, then [docs/discord-adapter.md](docs/discord-adapter.md) for the Discord side.
+
+## Commands
+
+| | |
+|---|---|
+| `/new [expiry] [note]` | A fresh address. Permanent unless you give it an expiry in days. |
+| `/list` | Everything you own, with notes and expiry dates. |
+| `/extend <address> [expiry]` | Change when one expires, or `expiry: 0` to make it permanent. |
+| `/note <address> [note]` | Label one so `/list` tells you what it was for. |
+| `/remind [enabled]` | Opt in to a DM about a day before an address expires. |
+| `/torch <address>` | Kill it. |
+
+Every reply is ephemeral, visible only to whoever ran the command. Full details in [docs/discord-adapter.md](docs/discord-adapter.md).
 
 ## How it works
 
@@ -45,12 +58,14 @@ Either way, [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) is the walkth
 3. Mail arrives. The Worker looks up the owner. Missing, expired, or torched: dropped, no bounce, nothing logged.
 4. Valid: the mail gets parsed (HTML to readable text, links intact, attachments forwarded) and delivered.
 
-A daily cron clears expired and torched addresses along with stale rate-limit rows.
+A daily cron clears expired and torched addresses along with stale rate-limit rows, and sends expiry reminders to anyone who asked for them.
+
+Everything in an inbound email is treated as hostile, since anyone who learns an address can send to it. Markdown is escaped so a message can't arrive as a link claiming to be your bank while pointing elsewhere, links from HTML mail show their real destination, and mentions can't ping.
+
+The Worker also serves a small status page at its root with running totals, plus the same numbers as JSON at `/counters`. No addresses or owners are exposed, just counts.
 
 ## Limits
 
-- Addresses are permanent by default. `/new expiry: 7` gives you one that expires in 7 days instead.
-- `/new note: netflix trial` labels an address so `/list` tells you what it was for.
 - 5 active addresses per owner, configurable. Torch one to make room.
 - Message bodies cap at 1500 characters inline, longer gets attached as `message.txt`.
 - Inbound HTML caps at 256KB before parsing (parsing cost scales quadratically with input, and addresses are reachable by anyone who learns one).

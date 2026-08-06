@@ -11,7 +11,7 @@ If you want mail.tm mode, read [the caveat](#mailtm-mode-no-domain) below before
 
 Discord setup is a separate step you'll do at the end, same for every path: [discord-adapter.md](discord-adapter.md).
 
-`npm run setup` handles steps 1 and 2 interactively if you'd rather not edit config by hand. There's also a [Deploy to Cloudflare button](../README.md#quick-start) that replaces steps 1, 2 and 5, but leaves the rest of this guide to you.
+`npm run setup` handles steps 1 and 2 interactively if you'd rather not edit config by hand. There's also a [Deploy to Cloudflare button](../README.md#deploy) that replaces steps 1, 2 and 5, but leaves the rest of this guide to you.
 
 ## What you need
 
