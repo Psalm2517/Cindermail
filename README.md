@@ -4,10 +4,12 @@
 
 **Disposable email delivered to chat, not another inbox to check.**
 
+[![Release](https://img.shields.io/github/v/release/Psalm2517/Cindermail)](https://github.com/Psalm2517/Cindermail/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![CI](https://github.com/Psalm2517/Cindermail/actions/workflows/ci.yml/badge.svg)](https://github.com/Psalm2517/Cindermail/actions/workflows/ci.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-f38020.svg?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com)
+[![Stars](https://img.shields.io/github/stars/Psalm2517/Cindermail)](https://github.com/Psalm2517/Cindermail/stargazers)
 
 
 </div>
