@@ -56,22 +56,29 @@ Every reply is ephemeral, a Discord message type only the person who ran the com
 
 | Command | What it does | Default rate limit |
 |---|---|---|
-| `/new [permanent]` | Creates a disposable address. Max 5 active. | 1 per 30s |
-| `/list` | Lists your active addresses and expiry. | 15 per 60s |
-| `/extend <address> [permanent]` | Pushes expiry out 10 days, or flips permanence. | 15 per 60s |
+| `/new [expiry]` | Creates an address. Permanent unless you set `expiry`. | 1 per 30s |
+| `/list` | Lists your active addresses and when they expire. | 15 per 60s |
+| `/extend <address> [expiry]` | Changes when an address expires. | 15 per 60s |
 | `/torch <address>` | Revokes an address. | 15 per 60s |
 
-Addresses expire 10 days after creation or your last `/extend`, torched or not. Every number here is a configurable default, see [configuration.md](configuration.md).
+## Expiry
 
-## Permanent addresses
+`expiry` is a number of **days** on both `/new` and `/extend`. `0` always means permanent.
 
-`permanent` is an optional true/false on both `/new` and `/extend`. A permanent address never expires and is good until you torch it, which is still the only thing that ends it.
+```
+/new                                  permanent, good until you torch it
+/new expiry: 7                        expires in 7 days
+/new expiry: 0                        permanent, same as leaving it off
 
-- `/new permanent: true` creates one that never expires.
-- `/extend <address> permanent: true` makes an existing address permanent.
-- `/extend <address> permanent: false` puts it back on the clock, expiring 10 days out.
-- Leaving the option off does what it always did: `/new` gets the normal expiry, `/extend` pushes expiry out and leaves permanence alone.
+/extend address: x@you.com            pushes expiry out 10 days
+/extend address: x@you.com expiry: 5  expires 5 days from now
+/extend address: x@you.com expiry: 0  makes it permanent
+```
 
-Permanent addresses still count against your active address limit, and `/list` shows them as `permanent` instead of a countdown. Daily cleanup skips them, so the only way one leaves the database is `/torch`.
+The one asymmetry worth remembering: a bare `/new` is permanent, but a bare `/extend` gives you the 10 day default. `/extend` without arguments should do what its name says.
 
-If you're upgrading an existing deployment rather than starting fresh, apply `migrations/0003_add_permanent.sql` to your database first, and re-run `npm run register-commands` so Discord picks up the new option.
+`/extend` sets expiry relative to now, it doesn't add to what's left. Extending an address with 8 days remaining by `expiry: 5` leaves 5 days, not 13.
+
+Permanent addresses count against your active address limit like any other, and `/list` shows them as `permanent` instead of a countdown. Daily cleanup skips them, so `/torch` is the only thing that ends one.
+
+The 10 day default and the 5 address limit are both configurable, see [configuration.md](configuration.md).
