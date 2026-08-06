@@ -13,6 +13,9 @@
     "cf:deploy": "wrangler deploy",
     "cf:db:init": "wrangler d1 execute cinderbox --remote --file=schema.sql",
     "cf:db:init:local": "wrangler d1 execute cinderbox --local --file=schema.sql",
+    "cf:mailtm:dev": "wrangler dev --config wrangler-mailtm.jsonc",
+    "cf:mailtm:deploy": "wrangler deploy --config wrangler-mailtm.jsonc",
+    "cf:mailtm:db:init": "wrangler d1 execute cinderbox-mailtm --remote --file=schema.sql --config wrangler-mailtm.jsonc",
     "start": "node --experimental-strip-types src/node/index.ts",
     "start:mailtm": "node --experimental-strip-types src/receivers/mailtm/run.ts",
     "banner": "node --experimental-strip-types src/banner.ts"

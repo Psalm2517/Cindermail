@@ -3,6 +3,7 @@ node_modules/
 .dev.vars
 *.log
 wrangler.toml
+wrangler-mailtm.jsonc
 .env
 *.db
 *.db-wal

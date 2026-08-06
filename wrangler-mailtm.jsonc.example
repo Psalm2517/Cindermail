@@ -1,0 +1,33 @@
+{
+  // For manual `wrangler deploy` from your own machine, not Workers Builds.
+  // Copy this to wrangler-mailtm.jsonc (gitignored) and fill in database_id
+  // below after running `npx wrangler d1 create cinderbox-mailtm`. See
+  // docs/deploy-cloudflare-mailtm.md for the full walkthrough.
+  //
+  // No DISPOSABLE_DOMAIN here: mail.tm provisions its own address on its own
+  // domain, there's nothing for this Worker to own. That's the point of
+  // this path.
+  //
+  // Two cron schedules on the same scheduled() handler (see
+  // src/receivers/mailtm/worker.ts): the frequent one polls mail.tm for new
+  // messages, the daily one runs cleanup. Cron Triggers have a 1 minute
+  // floor, so mail arrives with up to ~60s of latency (average ~30s)
+  // instead of the Node path's ~15s poll (average ~7.5s).
+  "name": "cinderbox-mailtm",
+  "main": "src/receivers/mailtm/worker.ts",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "ADAPTERS": "discord"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cinderbox-mailtm",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+    }
+  ],
+  "triggers": {
+    "crons": ["*/1 * * * *", "0 3 * * *"]
+  }
+}
