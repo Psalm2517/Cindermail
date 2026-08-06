@@ -42,26 +42,18 @@ A core that generates addresses, tracks who owns them, parses incoming mail, and
 
 ## Deploy to Cloudflare
 
-Shortcuts for two of the paths above, not a separate way to get started. If you're not already set on Cloudflare, use Quick start instead.
-
-**[Cloudflare Workers, your own domain](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)**
+A shortcut for the Cloudflare Workers path above, not a separate way to get started. If you're not already set on Cloudflare, use Quick start instead.
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
 
 Forks this repo into your own Cloudflare account, creates a brand new D1 database (does not touch this project's own database), deploys the Worker, and prompts you for the three Discord secrets. Still required afterward, none of it optional:
 
 1. Load the database schema. The button doesn't run `schema.sql`, your new database is empty until you run `npx wrangler d1 execute cinderbox --remote --file=schema.sql` yourself.
-2. Set your own domain. It deploys with whatever's already committed in [wrangler.jsonc](wrangler.jsonc), this project's domain and address limits, not yours. Edit those in the Cloudflare dashboard afterward, under the Worker's Settings.
-3. Point your domain at Cloudflare Email Routing, then add a catch-all rule targeting the new Worker.
+2. Pick a mode. The deployed Worker runs whichever way [wrangler.jsonc](wrangler.jsonc)'s `DISPOSABLE_DOMAIN` is set, which starts out as this project's domain, not yours. In the Cloudflare dashboard, under the Worker's Settings, either set it to a domain you own or clear it entirely to run on mail.tm with no domain at all.
+3. Only if you set a domain: point it at Cloudflare Email Routing, then add a catch-all rule targeting the new Worker. Nothing to do here in mail.tm mode.
 4. Register the Discord commands (`npm run register-commands`) and set the Interactions Endpoint URL in the Discord Developer Portal.
 
-Full walkthrough, in order: [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md).
-
-**[Cloudflare Workers, mail.tm, no domain needed](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail/tree/main/deploy/mailtm-workers)**
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail/tree/main/deploy/mailtm-workers)
-
-Same idea, but for the mail.tm path: no domain, no Email Routing, no DNS. Still needs the schema loaded and the Discord commands registered afterward. Full walkthrough: [docs/deploy-cloudflare-mailtm.md](docs/deploy-cloudflare-mailtm.md).
+Full walkthrough, in order: [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) for the domain-based mode, [docs/deploy-cloudflare-mailtm.md](docs/deploy-cloudflare-mailtm.md) for mail.tm mode.
 
 ## How it works
 

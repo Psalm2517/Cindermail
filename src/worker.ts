@@ -7,12 +7,28 @@ import { createDispatcher } from "./core/dispatch.ts";
 import { handleInboundEmail } from "./core/email.ts";
 import type { MailAdapter, OwnerRef } from "./core/types.ts";
 import { renderCounterPage } from "./counter-page.ts";
+import { createMailtmAddress } from "./receivers/mailtm/address.ts";
+import { runMailtmCleanup } from "./receivers/mailtm/cleanup.ts";
+import { pollOnce } from "./receivers/mailtm/poller.ts";
 import { createD1Executor } from "./storage/d1.ts";
 import pkg from "../package.json";
 
+// One Worker, two modes, picked by whether DISPOSABLE_DOMAIN is set:
+//
+//   set   -> your own domain. Mail arrives through Email Routing's catch-all
+//            hitting email() below. Needs DNS and a zone.
+//   unset -> mail.tm. Addresses are provisioned on mail.tm's domain and
+//            their API is polled on a cron instead, no domain, no DNS, no
+//            Email Routing. email() is never invoked because nothing routes
+//            mail here.
+//
+// Everything else (commands, storage, delivery, cleanup, the status page) is
+// identical between them, which is why this is a runtime branch rather than
+// two entrypoints to keep in sync.
 export interface Env {
   DB: D1Database;
-  DISPOSABLE_DOMAIN: string;
+  // Optional: leave unset to run in mail.tm mode.
+  DISPOSABLE_DOMAIN?: string;
   ADAPTERS: string;
   DISCORD_TOKEN: string;
   DISCORD_PUBLIC_KEY: string;
@@ -24,6 +40,14 @@ export interface Env {
 
 const CLEANUP_GRACE_SECONDS = 24 * 60 * 60;
 const STALE_RATE_LIMIT_SECONDS = 30 * 24 * 60 * 60;
+
+// Matches the daily schedule in wrangler.jsonc. Every other cron that fires
+// is the frequent mail.tm poll, which no-ops immediately in domain mode.
+const CLEANUP_CRON = "0 3 * * *";
+
+function usesOwnDomain(env: Env): boolean {
+  return !!env.DISPOSABLE_DOMAIN && env.DISPOSABLE_DOMAIN.trim() !== "";
+}
 
 function buildAdapters(env: Env): MailAdapter[] {
   const enabled = env.ADAPTERS.split(",").map((s) => s.trim());
@@ -76,12 +100,15 @@ export default {
       if (interaction.type === 2) {
         const db = createD1Executor(env.DB);
         const config = buildCommandConfig(env as Record<string, string | undefined>);
-        const createAddressFn = (
-          executor: ReturnType<typeof createD1Executor>,
-          owner: OwnerRef,
-          ttl: number,
-          permanent: boolean
-        ) => createAddress(executor, owner, env.DISPOSABLE_DOMAIN, ttl, permanent);
+        const domain = env.DISPOSABLE_DOMAIN;
+        // The only thing that actually differs between the two modes:
+        // where a new address comes from. createMailtmAddress already
+        // matches CreateAddressFn's signature, createAddress needs the
+        // domain bound in.
+        const createAddressFn = usesOwnDomain(env)
+          ? (executor: ReturnType<typeof createD1Executor>, owner: OwnerRef, ttl: number, permanent: boolean) =>
+              createAddress(executor, owner, domain as string, ttl, permanent)
+          : createMailtmAddress;
         const result = await handleInteraction(interaction, db, createAddressFn, config);
         return Response.json(result);
       }
@@ -98,9 +125,29 @@ export default {
     await handleInboundEmail({ to: message.to, from: message.from, raw: message.raw }, db, dispatcher);
   },
 
-  async scheduled(_event: ScheduledEvent, env: Env): Promise<void> {
+  async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
+    // The frequent trigger only exists for mail.tm mode. In domain mode
+    // this returns before touching D1 at all, so it costs a single env
+    // check per firing.
+    if (event.cron !== CLEANUP_CRON) {
+      if (usesOwnDomain(env)) {
+        return;
+      }
+      const db = createD1Executor(env.DB);
+      await pollOnce(db, createDispatcher(buildAdapters(env)));
+      return;
+    }
+
     const db = createD1Executor(env.DB);
-    await deleteExpiredAndRevoked(db, CLEANUP_GRACE_SECONDS);
-    await deleteStaleRateLimits(db, STALE_RATE_LIMIT_SECONDS);
+    if (usesOwnDomain(env)) {
+      await deleteExpiredAndRevoked(db, CLEANUP_GRACE_SECONDS);
+      await deleteStaleRateLimits(db, STALE_RATE_LIMIT_SECONDS);
+      return;
+    }
+
+    // Deletes each mailbox on mail.tm's side before dropping its row, which
+    // plain deleteExpiredAndRevoked can't do, then runs that and
+    // deleteStaleRateLimits itself.
+    await runMailtmCleanup(db);
   },
 };
