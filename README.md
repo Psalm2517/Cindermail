@@ -48,6 +48,7 @@ A daily cron clears expired and torched addresses along with stale rate-limit ro
 ## Limits
 
 - Addresses are permanent by default. `/new expiry: 7` gives you one that expires in 7 days instead.
+- `/new note: netflix trial` labels an address so `/list` tells you what it was for.
 - 5 active addresses per owner, configurable. Torch one to make room.
 - Message bodies cap at 1500 characters inline, longer gets attached as `message.txt`.
 - Inbound HTML caps at 256KB before parsing (parsing cost scales quadratically with input, and addresses are reachable by anyone who learns one).

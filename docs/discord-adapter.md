@@ -56,10 +56,23 @@ Every reply is ephemeral, a Discord message type only the person who ran the com
 
 | Command | What it does | Default rate limit |
 |---|---|---|
-| `/new [expiry]` | Creates an address. Permanent unless you set `expiry`. | 1 per 30s |
-| `/list` | Lists your active addresses and when they expire. | 15 per 60s |
+| `/new [expiry] [note]` | Creates an address. Permanent unless you set `expiry`. | 1 per 30s |
+| `/list` | Lists your active addresses, their notes, and when they expire. | 15 per 60s |
 | `/extend <address> [expiry]` | Changes when an address expires. | 15 per 60s |
+| `/note <address> [note]` | Labels an address. Blank clears it. | 15 per 60s |
 | `/torch <address>` | Revokes an address. | 15 per 60s |
+
+## Notes
+
+A random ten character local part tells you nothing about what you used it for. `note` is an optional label, up to 80 characters, that shows up next to the address in `/list`:
+
+```
+/new note: netflix trial
+/note address: x7k2p9qzrm@you.com note: bank alerts
+/note address: x7k2p9qzrm@you.com            removes the label
+```
+
+Notes are only ever shown back to the person who owns the address, in the same ephemeral replies as everything else.
 
 ## Expiry
 

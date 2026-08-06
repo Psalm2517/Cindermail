@@ -100,11 +100,11 @@ Everything else is identical to domain mode, including the status page below.
 
 ## The status page
 
-The Worker serves a small public page at its root showing running totals: addresses created, emails received, addresses torched. `GET /counters` returns the same numbers as JSON. Nothing per-user or per-address is exposed, just three totals. Works in both modes.
+The Worker serves a small public page at its root showing addresses created, emails received, addresses torched, and how many people currently hold an active address. `GET /counters` returns the same numbers as JSON. No addresses, notes, or owner ids are exposed, just the totals. Works in both modes.
 
 To serve it on your own domain rather than the `workers.dev` URL, add a Custom Domain under the Worker's Settings > Domains & Routes. That's separate from Email Routing, which only handles inbound mail.
 
-The totals come from a `counters` table rather than counting rows, since daily cleanup deletes expired and torched rows and a live count would shrink as it ran. If the table isn't there the counters read as zero and nothing else breaks.
+The first three come from a `counters` table rather than counting rows, since daily cleanup deletes expired and torched rows and a live count would shrink as it ran. The user count is deliberately live instead: it's people with an address right now, not people who ever had one, so it does go down. If the table isn't there the counters read as zero and nothing else breaks.
 
 ## Upgrading an existing deployment
 
@@ -114,6 +114,7 @@ Fresh installs get everything from `schema.sql` and need none of this. A databas
 npx wrangler d1 execute cinderbox --remote --file=migrations/0003_add_permanent.sql
 npx wrangler d1 execute cinderbox --remote --file=migrations/0004_add_counters.sql
 npx wrangler d1 execute cinderbox --remote --file=migrations/0005_add_received_counter.sql
+npx wrangler d1 execute cinderbox --remote --file=migrations/0006_add_note.sql
 ```
 
-`0003` is what permanent addresses need, `0004` and `0005` are the status page's totals.
+`0003` is what permanent addresses need, `0004` and `0005` are the status page's totals, `0006` is address notes. Re-run `npm run register-commands` afterward so Discord picks up any new command options.

@@ -1,4 +1,10 @@
-import { countActiveAddresses, extendAddress, listActiveAddresses, revokeAddress } from "../../core/db.ts";
+import {
+  countActiveAddresses,
+  extendAddress,
+  listActiveAddresses,
+  revokeAddress,
+  setAddressNote,
+} from "../../core/db.ts";
 import { checkAndIncrement } from "../../core/ratelimit.ts";
 import type { SqlExecutor } from "../../core/storage.ts";
 import type { OwnerRef } from "../../core/types.ts";
@@ -17,8 +23,13 @@ export type CreateAddressFn = (
   db: SqlExecutor,
   owner: OwnerRef,
   ttlSeconds: number,
-  permanent: boolean
+  permanent: boolean,
+  note: string | null
 ) => Promise<string>;
+
+// Matches max_length on the registered `note` option. Long enough to be a
+// useful label, short enough that /list stays scannable.
+const MAX_NOTE_LENGTH = 80;
 
 // The largest expiry we'll accept, in days. Beyond this the seconds value
 // starts approaching the point where it stops being a meaningful timestamp,
@@ -127,9 +138,18 @@ export async function handleInteraction(
 
   switch (commandName) {
     case "new":
-      return handleNew(db, owner, createAddressFn, config, getIntegerOption(interaction, "expiry"));
+      return handleNew(
+        db,
+        owner,
+        createAddressFn,
+        config,
+        getIntegerOption(interaction, "expiry"),
+        getOption(interaction, "note")
+      );
     case "list":
       return handleList(db, owner);
+    case "note":
+      return handleNote(db, owner, getOption(interaction, "address"), getOption(interaction, "note") ?? "");
     case "extend":
       return handleExtend(
         db,
@@ -150,7 +170,8 @@ async function handleNew(
   owner: OwnerRef,
   createAddressFn: CreateAddressFn,
   config: CommandConfig,
-  expiryDays: number | undefined
+  expiryDays: number | undefined,
+  note: string | undefined
 ) {
   // Leaving `expiry` off means permanent. Addresses are meant to outlive
   // whatever you signed up for unless you say otherwise.
@@ -169,8 +190,24 @@ async function handleNew(
     );
   }
 
-  const address = await createAddressFn(db, owner, expiry.ttlSeconds, expiry.permanent);
-  return ephemeralReply(`Your new disposable address: \`${address}\`\n${describeExpiry(expiry)}`);
+  const trimmedNote = note?.trim().slice(0, MAX_NOTE_LENGTH) || null;
+  const address = await createAddressFn(db, owner, expiry.ttlSeconds, expiry.permanent, trimmedNote);
+  const label = trimmedNote ? ` (${trimmedNote})` : "";
+  return ephemeralReply(`Your new disposable address: \`${address}\`${label}\n${describeExpiry(expiry)}`);
+}
+
+async function handleNote(db: SqlExecutor, owner: OwnerRef, address: string | undefined, note: string) {
+  if (!address) {
+    return ephemeralReply("Missing address.");
+  }
+  const trimmed = note.trim().slice(0, MAX_NOTE_LENGTH);
+  const updated = await setAddressNote(db, owner, address, trimmed);
+  if (!updated) {
+    return ephemeralReply("Not found or not yours.");
+  }
+  return trimmed
+    ? ephemeralReply(`\`${address}\` is now labelled "${trimmed}".`)
+    : ephemeralReply(`Cleared the note on \`${address}\`.`);
 }
 
 async function handleList(db: SqlExecutor, owner: OwnerRef) {
@@ -178,9 +215,13 @@ async function handleList(db: SqlExecutor, owner: OwnerRef) {
   if (addresses.length === 0) {
     return ephemeralReply("You have no active addresses.");
   }
-  const lines = addresses.map((a) =>
-    a.permanent === 1 ? `\`${a.address}\`, permanent` : `\`${a.address}\`, expires <t:${a.expires_at}:R>`
-  );
+  const lines = addresses.map((a) => {
+    const when = a.permanent === 1 ? "permanent" : `expires <t:${a.expires_at}:R>`;
+    // Notes are user-supplied, so strip backticks to stop one from breaking
+    // out of the code span and mangling the rest of the line.
+    const label = a.note ? ` ${a.note.replaceAll("`", "")} ` : " ";
+    return `\`${a.address}\`${label}(${when})`;
+  });
   return ephemeralReply(lines.join("\n"));
 }
 

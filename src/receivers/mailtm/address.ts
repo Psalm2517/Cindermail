@@ -22,7 +22,8 @@ export async function createMailtmAddress(
   db: SqlExecutor,
   owner: OwnerRef,
   ttlSeconds: number,
-  permanent = false
+  permanent = false,
+  note: string | null = null
 ): Promise<string> {
   const domain = await getActiveDomain();
 
@@ -33,7 +34,7 @@ export async function createMailtmAddress(
     try {
       const account = await createAccount(address, password);
       const receiverData: MailtmReceiverData = { provider: "mailtm", password, accountId: account.id };
-      await registerAddress(db, address, owner, ttlSeconds, JSON.stringify(receiverData), permanent);
+      await registerAddress(db, address, owner, ttlSeconds, JSON.stringify(receiverData), permanent, note);
       return address;
     } catch (err) {
       // 422 means the address is already taken on mail.tm's side (or, once

@@ -16,6 +16,7 @@ const ALL_CONTEXTS = [0, 1, 2];
 // Discord reject out-of-range input in its own UI before it ever reaches the
 // Worker; interactions.ts validates again anyway.
 const MAX_EXPIRY_DAYS = 3650;
+const MAX_NOTE_LENGTH = 80;
 
 const commands = [
   {
@@ -32,6 +33,13 @@ const commands = [
         min_value: 0,
         max_value: MAX_EXPIRY_DAYS,
       },
+      {
+        type: 3,
+        name: "note",
+        description: "A label to remember what it's for, shown in /list",
+        required: false,
+        max_length: MAX_NOTE_LENGTH,
+      },
     ],
   },
   {
@@ -39,6 +47,27 @@ const commands = [
     description: "List your active disposable email addresses",
     integration_types: GUILD_AND_USER_INSTALL,
     contexts: ALL_CONTEXTS,
+  },
+  {
+    name: "note",
+    description: "Label an address so you remember what it's for",
+    integration_types: GUILD_AND_USER_INSTALL,
+    contexts: ALL_CONTEXTS,
+    options: [
+      {
+        type: 3,
+        name: "address",
+        description: "The address to label",
+        required: true,
+      },
+      {
+        type: 3,
+        name: "note",
+        description: "The label. Leave blank to remove it.",
+        required: false,
+        max_length: MAX_NOTE_LENGTH,
+      },
+    ],
   },
   {
     name: "extend",
