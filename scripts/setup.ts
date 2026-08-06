@@ -18,17 +18,6 @@ async function confirm(question: string): Promise<boolean> {
   return answer === "y" || answer === "yes";
 }
 
-function setEnvValue(content: string, key: string, value: string): string {
-  const pattern = new RegExp(`^#?\\s*${key}=.*$`, "m");
-  const line = `${key}=${value}`;
-  return pattern.test(content) ? content.replace(pattern, line) : `${content.trimEnd()}\n${line}\n`;
-}
-
-// Commented-out in the example so mail.tm mode doesn't pick up a stale domain.
-function commentOutEnvValue(content: string, key: string): string {
-  return content.replace(new RegExp(`^${key}=.*$`, "m"), `# ${key}= (unused in mail.tm mode)`);
-}
-
 async function writeGuarded(path: string, content: string): Promise<boolean> {
   if (existsSync(path) && !(await confirm(`${path} already exists. Overwrite it?`))) {
     console.log(`Left ${path} alone. Nothing written.`);
@@ -39,14 +28,21 @@ async function writeGuarded(path: string, content: string): Promise<boolean> {
   return true;
 }
 
-async function askDiscordCredentials(): Promise<Record<string, string>> {
+// Secrets go through `wrangler secret put`, which prompts for the value
+// itself, so nothing sensitive is read here or written to any file.
+async function putDiscordSecrets(): Promise<void> {
   console.log("\nDiscord credentials, from discord.com/developers/applications.");
-  console.log("Leave any blank to skip and fill them into .env yourself later.");
-  return {
-    DISCORD_TOKEN: await ask("  Bot token"),
-    DISCORD_PUBLIC_KEY: await ask("  Public key"),
-    DISCORD_APPLICATION_ID: await ask("  Application ID"),
-  };
+  console.log("wrangler will prompt for each value. They're stored encrypted by");
+  console.log("Cloudflare, never written to a file in this repo.\n");
+
+  for (const name of ["DISCORD_TOKEN", "DISCORD_PUBLIC_KEY", "DISCORD_APPLICATION_ID"]) {
+    try {
+      execFileSync("npx", ["wrangler", "secret", "put", name], { stdio: "inherit" });
+    } catch {
+      console.log(`\nCouldn't set ${name}. Run this yourself later:`);
+      console.log(`  npx wrangler secret put ${name}`);
+    }
+  }
 }
 
 async function askLimits(): Promise<Record<string, string>> {
@@ -69,45 +65,7 @@ async function askLimits(): Promise<Record<string, string>> {
   return result;
 }
 
-async function setupEnvPath(mode: "mailtm" | "selfhost"): Promise<void> {
-  let content = readFileSync(".env.example", "utf8");
-
-  if (mode === "selfhost") {
-    const domain = await ask("\nDomain addresses get generated on (e.g. yourdomain.com)");
-    if (domain) {
-      content = setEnvValue(content, "DISPOSABLE_DOMAIN", domain);
-    }
-  } else {
-    content = commentOutEnvValue(content, "DISPOSABLE_DOMAIN");
-  }
-
-  for (const [key, value] of Object.entries(await askDiscordCredentials())) {
-    if (value) {
-      content = setEnvValue(content, key, value);
-    }
-  }
-
-  for (const [key, value] of Object.entries(await askLimits())) {
-    content = setEnvValue(content, key, value);
-  }
-
-  if (!(await writeGuarded(".env", content))) {
-    return;
-  }
-
-  console.log("\nNext:");
-  if (mode === "selfhost") {
-    console.log("  1. Point your domain's DNS at this machine: an A record for a mail");
-    console.log("     hostname, then an MX record for the domain pointing at it.");
-    console.log("     Full walkthrough: docs/deploy-selfhost.md");
-    console.log("  2. npm start");
-  } else {
-    console.log("  npm run start:mailtm");
-  }
-  console.log("  Then finish the Discord side: docs/discord-adapter.md");
-}
-
-async function setupCloudflare(): Promise<void> {
+async function setupCloudflare(mode: "domain" | "mailtm"): Promise<void> {
   try {
     execFileSync("npx", ["wrangler", "--version"], { stdio: "ignore" });
   } catch {
@@ -123,9 +81,16 @@ async function setupCloudflare(): Promise<void> {
   // silently, so a stray wrangler.toml would just be ignored.
   let content = readFileSync("wrangler.jsonc", "utf8");
 
-  const domain = await ask("\nDomain addresses get generated on (e.g. yourdomain.com)");
-  if (domain) {
-    content = content.replace(/("DISPOSABLE_DOMAIN":\s*)"[^"]*"/, `$1"${domain}"`);
+  if (mode === "domain") {
+    const domain = await ask("\nDomain addresses get generated on (e.g. yourdomain.com)");
+    if (domain) {
+      content = content.replace(/("DISPOSABLE_DOMAIN":\s*)"[^"]*"/, `$1"${domain}"`);
+    }
+  } else {
+    // An empty DISPOSABLE_DOMAIN is what puts the Worker in mail.tm mode.
+    // Emptied rather than removed so it's obvious what to fill in later to
+    // switch over to a domain.
+    content = content.replace(/("DISPOSABLE_DOMAIN":\s*)"[^"]*"/, `$1""`);
   }
 
   for (const [key, value] of Object.entries(await askLimits())) {
@@ -166,12 +131,22 @@ async function setupCloudflare(): Promise<void> {
     console.log("  before deploying: `npx wrangler d1 create cinderbox` prints one.");
   }
 
-  console.log("\nNext, the parts that can't be scripted:");
-  console.log("  1. Check your domain's MX records point at Cloudflare Email Routing.");
-  console.log("  2. npm run cf:db:init");
-  console.log("  3. npm run cf:deploy");
-  console.log("  4. Add a catch-all Email Routing rule whose action is this Worker.");
-  console.log("  5. wrangler secret put DISCORD_TOKEN (and PUBLIC_KEY, APPLICATION_ID)");
+  if (await confirm("\nSet the Discord secrets now?")) {
+    await putDiscordSecrets();
+  }
+
+  console.log("\nNext:");
+  let step = 1;
+  if (mode === "domain") {
+    console.log(`  ${step++}. Check your domain's MX records point at Cloudflare Email Routing.`);
+  }
+  console.log(`  ${step++}. npm run cf:db:init`);
+  console.log(`  ${step++}. npm run cf:deploy`);
+  if (mode === "domain") {
+    console.log(`  ${step++}. Add a catch-all Email Routing rule whose action is this Worker.`);
+  } else {
+    console.log("  No DNS or Email Routing to set up, mail.tm handles receiving.");
+  }
   console.log("  Full walkthrough: docs/deploy-cloudflare.md, then docs/discord-adapter.md");
 }
 
@@ -183,21 +158,20 @@ async function main(): Promise<void> {
     console.log(`\nWarning: Node.js ${process.versions.node} is older than the supported v18.`);
   }
 
-  console.log("\nHow should mail be received?\n");
-  console.log("  1) mail.tm      quickest. No domain, no DNS, no server.");
-  console.log("  2) Self-hosted  your domain, your machine, receives on port 25.");
-  console.log("  3) Cloudflare   your domain, no server, Email Routing + D1.\n");
+  console.log("\nWhere should addresses live?\n");
+  console.log("  1) mail.tm's domain   nothing to buy, nothing to configure.");
+  console.log("  2) a domain you own   doesn't look disposable, so it isn't");
+  console.log("                        blocked by signup forms the way mail.tm is.\n");
+  console.log("  Both run the same Worker on Cloudflare. You can switch later");
+  console.log("  by changing DISPOSABLE_DOMAIN, no redeploy needed.\n");
 
   const choice = await ask("Pick one", "1");
   switch (choice) {
     case "1":
-      await setupEnvPath("mailtm");
+      await setupCloudflare("mailtm");
       break;
     case "2":
-      await setupEnvPath("selfhost");
-      break;
-    case "3":
-      await setupCloudflare();
+      await setupCloudflare("domain");
       break;
     default:
       console.log(`Not one of the options: ${choice}`);

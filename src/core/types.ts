@@ -38,5 +38,6 @@ export interface AddressRow {
   revoked: number;
   revoked_at: number | null;
   permanent: number;
+  note: string | null;
   receiver_data: string | null;
 }

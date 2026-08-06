@@ -1,4 +1,10 @@
-import { countActiveAddresses, extendAddress, listActiveAddresses, revokeAddress } from "../../core/db.ts";
+import {
+  countActiveAddresses,
+  extendAddress,
+  listActiveAddresses,
+  revokeAddress,
+  setAddressNote,
+} from "../../core/db.ts";
 import { checkAndIncrement } from "../../core/ratelimit.ts";
 import type { SqlExecutor } from "../../core/storage.ts";
 import type { OwnerRef } from "../../core/types.ts";
@@ -8,21 +14,31 @@ const EPHEMERAL = 64;
 
 const RATE_LIMIT_MESSAGE = "Slow down a moment, then try again.";
 
-// How a new address actually gets created differs by receiver: Cloudflare
-// and self-hosted SMTP invent a random local part on a domain you own,
-// mail.tm calls an external API and gets an address back. Injecting this
-// keeps command handling identical across every receiver instead of each
-// one needing its own copy of /new, /list, /extend, /torch.
+// How a new address actually gets created differs by mode: a domain you own
+// means inventing a random local part, mail.tm means calling their API and
+// getting an address back. Injecting this keeps command handling identical
+// across both instead of each needing its own copy of /new, /list, /extend,
+// /torch.
 export type CreateAddressFn = (
   db: SqlExecutor,
   owner: OwnerRef,
   ttlSeconds: number,
-  permanent: boolean
+  permanent: boolean,
+  note: string | null
 ) => Promise<string>;
+
+// Matches max_length on the registered `note` option. Long enough to be a
+// useful label, short enough that /list stays scannable.
+const MAX_NOTE_LENGTH = 80;
+
+// The largest expiry we'll accept, in days. Beyond this the seconds value
+// starts approaching the point where it stops being a meaningful timestamp,
+// and anyone wanting longer than this wants a permanent address anyway.
+const MAX_EXPIRY_DAYS = 3650;
 
 interface DiscordInteractionOption {
   name: string;
-  value?: string | boolean;
+  value?: string | number;
 }
 
 export interface DiscordInteraction {
@@ -51,12 +67,46 @@ function getOption(interaction: DiscordInteraction, name: string): string | unde
   return typeof value === "string" ? value : undefined;
 }
 
-// Discord sends booleans for BOOLEAN options. Undefined means the option was
-// left off entirely, which callers treat differently from an explicit false.
-function getBooleanOption(interaction: DiscordInteraction, name: string): boolean | undefined {
+// Discord sends numbers for INTEGER options. Undefined means the option was
+// left off entirely, which every caller treats differently from an explicit
+// value (notably 0, which means permanent).
+function getIntegerOption(interaction: DiscordInteraction, name: string): number | undefined {
   const value = interaction.data?.options?.find((o) => o.name === name)?.value;
-  return typeof value === "boolean" ? value : undefined;
+  return typeof value === "number" && Number.isInteger(value) ? value : undefined;
 }
+
+interface Expiry {
+  ttlSeconds: number;
+  permanent: boolean;
+}
+
+// `expiry` is in days, 0 meaning permanent. Discord enforces the
+// 0..MAX_EXPIRY_DAYS range itself via min_value/max_value on the registered
+// command, so this is a backstop for anything reaching the endpoint another
+// way.
+//
+// Permanent still carries the default TTL rather than 0: core/db.ts keeps
+// expires_at fresh even on permanent rows deliberately, so that dropping the
+// flag later leaves a usable expiry instead of one that lapsed while the
+// address was permanent.
+function parseExpiry(days: number, defaultTtlSeconds: number): Expiry | null {
+  if (days < 0 || days > MAX_EXPIRY_DAYS) {
+    return null;
+  }
+  return days === 0
+    ? { ttlSeconds: defaultTtlSeconds, permanent: true }
+    : { ttlSeconds: days * 86400, permanent: false };
+}
+
+function describeExpiry(expiry: Expiry): string {
+  if (expiry.permanent) {
+    return "Permanent, good until you torch it.";
+  }
+  const days = Math.round(expiry.ttlSeconds / 86400);
+  return `Expires in ${days} day${days === 1 ? "" : "s"}.`;
+}
+
+const BAD_EXPIRY_MESSAGE = `\`expiry\` must be a whole number of days between 0 and ${MAX_EXPIRY_DAYS}. Use 0 for permanent.`;
 
 export async function handleInteraction(
   interaction: DiscordInteraction,
@@ -88,16 +138,25 @@ export async function handleInteraction(
 
   switch (commandName) {
     case "new":
-      return handleNew(db, owner, createAddressFn, config, getBooleanOption(interaction, "permanent") ?? false);
+      return handleNew(
+        db,
+        owner,
+        createAddressFn,
+        config,
+        getIntegerOption(interaction, "expiry"),
+        getOption(interaction, "note")
+      );
     case "list":
       return handleList(db, owner);
+    case "note":
+      return handleNote(db, owner, getOption(interaction, "address"), getOption(interaction, "note") ?? "");
     case "extend":
       return handleExtend(
         db,
         owner,
         getOption(interaction, "address"),
         config,
-        getBooleanOption(interaction, "permanent")
+        getIntegerOption(interaction, "expiry")
       );
     case "torch":
       return handleTorch(db, owner, getOption(interaction, "address"));
@@ -111,8 +170,19 @@ async function handleNew(
   owner: OwnerRef,
   createAddressFn: CreateAddressFn,
   config: CommandConfig,
-  permanent: boolean
+  expiryDays: number | undefined,
+  note: string | undefined
 ) {
+  // Leaving `expiry` off means permanent. Addresses are meant to outlive
+  // whatever you signed up for unless you say otherwise.
+  const expiry =
+    expiryDays === undefined
+      ? { ttlSeconds: config.addressTtlSeconds, permanent: true }
+      : parseExpiry(expiryDays, config.addressTtlSeconds);
+  if (!expiry) {
+    return ephemeralReply(BAD_EXPIRY_MESSAGE);
+  }
+
   const activeCount = await countActiveAddresses(db, owner);
   if (activeCount >= config.maxActiveAddresses) {
     return ephemeralReply(
@@ -120,12 +190,24 @@ async function handleNew(
     );
   }
 
-  const address = await createAddressFn(db, owner, config.addressTtlSeconds, permanent);
-  if (permanent) {
-    return ephemeralReply(`Your new disposable address: \`${address}\`\nPermanent, good until you torch it.`);
+  const trimmedNote = note?.trim().slice(0, MAX_NOTE_LENGTH) || null;
+  const address = await createAddressFn(db, owner, expiry.ttlSeconds, expiry.permanent, trimmedNote);
+  const label = trimmedNote ? ` (${trimmedNote})` : "";
+  return ephemeralReply(`Your new disposable address: \`${address}\`${label}\n${describeExpiry(expiry)}`);
+}
+
+async function handleNote(db: SqlExecutor, owner: OwnerRef, address: string | undefined, note: string) {
+  if (!address) {
+    return ephemeralReply("Missing address.");
   }
-  const days = Math.round(config.addressTtlSeconds / 86400);
-  return ephemeralReply(`Your new disposable address: \`${address}\`\nExpires in ${days} day${days === 1 ? "" : "s"}.`);
+  const trimmed = note.trim().slice(0, MAX_NOTE_LENGTH);
+  const updated = await setAddressNote(db, owner, address, trimmed);
+  if (!updated) {
+    return ephemeralReply("Not found or not yours.");
+  }
+  return trimmed
+    ? ephemeralReply(`\`${address}\` is now labelled "${trimmed}".`)
+    : ephemeralReply(`Cleared the note on \`${address}\`.`);
 }
 
 async function handleList(db: SqlExecutor, owner: OwnerRef) {
@@ -133,9 +215,13 @@ async function handleList(db: SqlExecutor, owner: OwnerRef) {
   if (addresses.length === 0) {
     return ephemeralReply("You have no active addresses.");
   }
-  const lines = addresses.map((a) =>
-    a.permanent === 1 ? `\`${a.address}\`, permanent` : `\`${a.address}\`, expires <t:${a.expires_at}:R>`
-  );
+  const lines = addresses.map((a) => {
+    const when = a.permanent === 1 ? "permanent" : `expires <t:${a.expires_at}:R>`;
+    // Notes are user-supplied, so strip backticks to stop one from breaking
+    // out of the code span and mangling the rest of the line.
+    const label = a.note ? ` ${a.note.replaceAll("`", "")} ` : " ";
+    return `\`${a.address}\`${label}(${when})`;
+  });
   return ephemeralReply(lines.join("\n"));
 }
 
@@ -144,24 +230,33 @@ async function handleExtend(
   owner: OwnerRef,
   address: string | undefined,
   config: CommandConfig,
-  permanent: boolean | undefined
+  expiryDays: number | undefined
 ) {
   if (!address) {
     return ephemeralReply("Missing address.");
   }
-  const updated = await extendAddress(db, owner, address, config.addressTtlSeconds, permanent);
+
+  // Unlike /new, leaving `expiry` off here means the configured default
+  // rather than permanent: /extend without arguments should do the thing
+  // its name says.
+  const expiry =
+    expiryDays === undefined
+      ? { ttlSeconds: config.addressTtlSeconds, permanent: false }
+      : parseExpiry(expiryDays, config.addressTtlSeconds);
+  if (!expiry) {
+    return ephemeralReply(BAD_EXPIRY_MESSAGE);
+  }
+
+  const updated = await extendAddress(db, owner, address, expiry.ttlSeconds, expiry.permanent);
   if (!updated) {
     return ephemeralReply("Not found or not yours.");
   }
 
-  const days = Math.round(config.addressTtlSeconds / 86400);
-  if (permanent === true) {
+  if (expiry.permanent) {
     return ephemeralReply(`\`${address}\` is now permanent, good until you torch it.`);
   }
-  if (permanent === false) {
-    return ephemeralReply(`\`${address}\` is no longer permanent. Expires in ${days} day${days === 1 ? "" : "s"}.`);
-  }
-  return ephemeralReply(`Extended \`${address}\` by ${days} day${days === 1 ? "" : "s"}.`);
+  const days = Math.round(expiry.ttlSeconds / 86400);
+  return ephemeralReply(`\`${address}\` now expires in ${days} day${days === 1 ? "" : "s"}.`);
 }
 
 async function handleTorch(db: SqlExecutor, owner: OwnerRef, address: string | undefined) {

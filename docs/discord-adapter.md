@@ -1,8 +1,6 @@
 # Setting up the Discord adapter
 
-This is the same regardless of whether you're on Cloudflare or self-hosting. It's the step that actually gets mail delivered to you, everything in the two hosting guides only gets mail as far as "received and stored."
-
-You should have already finished one of [deploy-cloudflare.md](deploy-cloudflare.md) or [deploy-selfhost.md](deploy-selfhost.md) before starting this.
+This is the step that actually gets mail delivered to you. [deploy-cloudflare.md](deploy-cloudflare.md) only gets mail as far as "received and stored," so finish that first. It's the same either way, domain mode or mail.tm mode.
 
 ## 1. Create a Discord application
 
@@ -16,19 +14,13 @@ From the General Information and Bot tabs, grab three values:
 
 ## 2. Give it those credentials
 
-**If you're on Cloudflare:**
-
 ```bash
 npx wrangler secret put DISCORD_TOKEN
 npx wrangler secret put DISCORD_PUBLIC_KEY
 npx wrangler secret put DISCORD_APPLICATION_ID
 ```
 
-Each one prompts you to paste the value in.
-
-**If you're self-hosting:**
-
-Open the `.env` file you created earlier and fill in `DISCORD_TOKEN`, `DISCORD_PUBLIC_KEY`, and `DISCORD_APPLICATION_ID`. Restart the process (`npm start`, or restart the container) so it picks them up.
+Each one prompts you to paste the value in. They're stored encrypted by Cloudflare, never written to a file in this repo. `npm run setup` offers to run these three for you.
 
 ## 3. Register the slash commands
 
@@ -42,12 +34,13 @@ This registers `/new`, `/list`, `/extend`, and `/torch` with Discord. It only ne
 
 ## 4. Point Discord at your interactions endpoint
 
-Back in the Discord Developer Portal, on the General Information tab, set the Interactions Endpoint URL:
+Back in the Discord Developer Portal, on the General Information tab, set the Interactions Endpoint URL to your Worker's URL plus `/interactions`:
 
-- **Cloudflare:** `https://<your-worker>.<your-subdomain>.workers.dev/interactions`
-- **Self-hosted:** the HTTPS URL from your reverse proxy or tunnel, plus `/interactions`
+```
+https://<your-worker>.<your-subdomain>.workers.dev/interactions
+```
 
-Discord verifies this by sending a signed ping the moment you save it. If that fails, it's almost always one of two things: the `DISCORD_PUBLIC_KEY` you set doesn't match the app's actual Verify Key, or your endpoint isn't reachable yet (DNS hasn't propagated, the reverse proxy isn't up, that kind of thing).
+Discord verifies this by sending a signed ping the moment you save it. If that fails, it's almost always one of two things: the `DISCORD_PUBLIC_KEY` you set doesn't match the app's actual Verify Key, or the Worker isn't deployed yet.
 
 ## 5. Try it
 
@@ -63,22 +56,42 @@ Every reply is ephemeral, a Discord message type only the person who ran the com
 
 | Command | What it does | Default rate limit |
 |---|---|---|
-| `/new [permanent]` | Creates a disposable address. Max 5 active. | 1 per 30s |
-| `/list` | Lists your active addresses and expiry. | 15 per 60s |
-| `/extend <address> [permanent]` | Pushes expiry out 10 days, or flips permanence. | 15 per 60s |
+| `/new [expiry] [note]` | Creates an address. Permanent unless you set `expiry`. | 1 per 30s |
+| `/list` | Lists your active addresses, their notes, and when they expire. | 15 per 60s |
+| `/extend <address> [expiry]` | Changes when an address expires. | 15 per 60s |
+| `/note <address> [note]` | Labels an address. Blank clears it. | 15 per 60s |
 | `/torch <address>` | Revokes an address. | 15 per 60s |
 
-Addresses expire 10 days after creation or your last `/extend`, torched or not. Every number here is a configurable default, see [configuration.md](configuration.md).
+## Notes
 
-## Permanent addresses
+A random ten character local part tells you nothing about what you used it for. `note` is an optional label, up to 80 characters, that shows up next to the address in `/list`:
 
-`permanent` is an optional true/false on both `/new` and `/extend`. A permanent address never expires and is good until you torch it, which is still the only thing that ends it.
+```
+/new note: netflix trial
+/note address: x7k2p9qzrm@you.com note: bank alerts
+/note address: x7k2p9qzrm@you.com            removes the label
+```
 
-- `/new permanent: true` creates one that never expires.
-- `/extend <address> permanent: true` makes an existing address permanent.
-- `/extend <address> permanent: false` puts it back on the clock, expiring 10 days out.
-- Leaving the option off does what it always did: `/new` gets the normal expiry, `/extend` pushes expiry out and leaves permanence alone.
+Notes are only ever shown back to the person who owns the address, in the same ephemeral replies as everything else.
 
-Permanent addresses still count against your active address limit, and `/list` shows them as `permanent` instead of a countdown. Daily cleanup skips them, so the only way one leaves the database is `/torch`.
+## Expiry
 
-If you're upgrading an existing deployment rather than starting fresh, apply `migrations/0003_add_permanent.sql` to your database first, and re-run `npm run register-commands` so Discord picks up the new option.
+`expiry` is a number of **days** on both `/new` and `/extend`. `0` always means permanent.
+
+```
+/new                                  permanent, good until you torch it
+/new expiry: 7                        expires in 7 days
+/new expiry: 0                        permanent, same as leaving it off
+
+/extend address: x@you.com            pushes expiry out 10 days
+/extend address: x@you.com expiry: 5  expires 5 days from now
+/extend address: x@you.com expiry: 0  makes it permanent
+```
+
+The one asymmetry worth remembering: a bare `/new` is permanent, but a bare `/extend` gives you the 10 day default. `/extend` without arguments should do what its name says.
+
+`/extend` sets expiry relative to now, it doesn't add to what's left. Extending an address with 8 days remaining by `expiry: 5` leaves 5 days, not 13.
+
+Permanent addresses count against your active address limit like any other, and `/list` shows them as `permanent` instead of a countdown. Daily cleanup skips them, so `/torch` is the only thing that ends one.
+
+The 10 day default and the 5 address limit are both configurable, see [configuration.md](configuration.md).

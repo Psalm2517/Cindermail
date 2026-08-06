@@ -12,6 +12,12 @@ if (!token || !applicationId) {
 const GUILD_AND_USER_INSTALL = [0, 1];
 const ALL_CONTEXTS = [0, 1, 2];
 
+// Discord option type 4 is INTEGER, 3 is STRING. min_value/max_value make
+// Discord reject out-of-range input in its own UI before it ever reaches the
+// Worker; interactions.ts validates again anyway.
+const MAX_EXPIRY_DAYS = 3650;
+const MAX_NOTE_LENGTH = 80;
+
 const commands = [
   {
     name: "new",
@@ -20,10 +26,19 @@ const commands = [
     contexts: ALL_CONTEXTS,
     options: [
       {
-        type: 5,
-        name: "permanent",
-        description: "Never expire, good until torched",
+        type: 4,
+        name: "expiry",
+        description: "Days until it expires. Leave blank or use 0 for permanent.",
         required: false,
+        min_value: 0,
+        max_value: MAX_EXPIRY_DAYS,
+      },
+      {
+        type: 3,
+        name: "note",
+        description: "A label to remember what it's for, shown in /list",
+        required: false,
+        max_length: MAX_NOTE_LENGTH,
       },
     ],
   },
@@ -34,8 +49,29 @@ const commands = [
     contexts: ALL_CONTEXTS,
   },
   {
+    name: "note",
+    description: "Label an address so you remember what it's for",
+    integration_types: GUILD_AND_USER_INSTALL,
+    contexts: ALL_CONTEXTS,
+    options: [
+      {
+        type: 3,
+        name: "address",
+        description: "The address to label",
+        required: true,
+      },
+      {
+        type: 3,
+        name: "note",
+        description: "The label. Leave blank to remove it.",
+        required: false,
+        max_length: MAX_NOTE_LENGTH,
+      },
+    ],
+  },
+  {
     name: "extend",
-    description: "Extend a disposable email address, or make it permanent",
+    description: "Change when a disposable email address expires",
     integration_types: GUILD_AND_USER_INSTALL,
     contexts: ALL_CONTEXTS,
     options: [
@@ -46,10 +82,12 @@ const commands = [
         required: true,
       },
       {
-        type: 5,
-        name: "permanent",
-        description: "True to never expire, false to go back to expiring",
+        type: 4,
+        name: "expiry",
+        description: "Days from now until it expires. Use 0 for permanent.",
         required: false,
+        min_value: 0,
+        max_value: MAX_EXPIRY_DAYS,
       },
     ],
   },

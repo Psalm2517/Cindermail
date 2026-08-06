@@ -106,8 +106,13 @@ export default {
         // matches CreateAddressFn's signature, createAddress needs the
         // domain bound in.
         const createAddressFn = usesOwnDomain(env)
-          ? (executor: ReturnType<typeof createD1Executor>, owner: OwnerRef, ttl: number, permanent: boolean) =>
-              createAddress(executor, owner, domain as string, ttl, permanent)
+          ? (
+              executor: ReturnType<typeof createD1Executor>,
+              owner: OwnerRef,
+              ttl: number,
+              permanent: boolean,
+              note: string | null
+            ) => createAddress(executor, owner, domain as string, ttl, permanent, note)
           : createMailtmAddress;
         const result = await handleInteraction(interaction, db, createAddressFn, config);
         return Response.json(result);

@@ -38,7 +38,8 @@ export async function createAddress(
   owner: OwnerRef,
   domain: string,
   ttlSeconds: number,
-  permanent = false
+  permanent = false,
+  note: string | null = null
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = now + ttlSeconds;
@@ -46,15 +47,16 @@ export async function createAddress(
   for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
     const address = `${randomAlphanumeric(LOCAL_PART_LENGTH)}@${domain}`;
     const result = await db.run(
-      `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked, permanent)
-       VALUES (?, ?, ?, ?, ?, 0, ?)
+      `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked, permanent, note)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?)
        ON CONFLICT(address) DO NOTHING`,
       address,
       owner.type,
       owner.id,
       now,
       expiresAt,
-      permanent ? 1 : 0
+      permanent ? 1 : 0,
+      note
     );
 
     if (result.changes > 0) {
@@ -76,22 +78,43 @@ export async function registerAddress(
   owner: OwnerRef,
   ttlSeconds: number,
   receiverData: string,
-  permanent = false
+  permanent = false,
+  note: string | null = null
 ): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = now + ttlSeconds;
   await db.run(
-    `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked, permanent, receiver_data)
-     VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+    `INSERT INTO addresses (address, owner_type, owner_id, created_at, expires_at, revoked, permanent, note, receiver_data)
+     VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`,
     address,
     owner.type,
     owner.id,
     now,
     expiresAt,
     permanent ? 1 : 0,
+    note,
     receiverData
   );
   await incrementCreatedCounter(db);
+}
+
+// Empty string clears the note rather than storing "", so /note with a blank
+// value is how you remove one.
+export async function setAddressNote(
+  db: SqlExecutor,
+  owner: OwnerRef,
+  address: string,
+  note: string
+): Promise<boolean> {
+  const result = await db.run(
+    `UPDATE addresses SET note = ?
+     WHERE address = ? AND owner_type = ? AND owner_id = ? AND revoked = 0`,
+    note.trim() === "" ? null : note,
+    address,
+    owner.type,
+    owner.id
+  );
+  return result.changes > 0;
 }
 
 export async function getAddress(db: SqlExecutor, address: string): Promise<AddressRow | null> {
@@ -256,16 +279,35 @@ export interface Counters {
   created: number;
   torched: number;
   received: number;
+  users: number;
+}
+
+const EMPTY_COUNTERS: Counters = { created: 0, torched: 0, received: 0, users: 0 };
+
+// Unlike the three running totals, this is counted live, so it goes down when
+// cleanup removes the last address belonging to someone. It's "people with an
+// active address right now", not "people who ever used it", and the status
+// page labels it that way.
+async function countOwners(db: SqlExecutor): Promise<number> {
+  const now = Math.floor(Date.now() / 1000);
+  const row = await db.first<{ count: number }>(
+    `SELECT COUNT(DISTINCT owner_id) as count FROM addresses
+     WHERE revoked = 0 AND (permanent = 1 OR expires_at > ?)`,
+    now
+  );
+  return row?.count ?? 0;
 }
 
 // Same reasoning as bumpCounter: the page renders zeroes rather than the
 // endpoint 500ing if the table isn't there yet.
 export async function getCounters(db: SqlExecutor): Promise<Counters> {
   try {
-    const row = await db.first<Counters>(`SELECT created, torched, received FROM counters WHERE id = 1`);
-    return row ?? { created: 0, torched: 0, received: 0 };
+    const row = await db.first<Omit<Counters, "users">>(
+      `SELECT created, torched, received FROM counters WHERE id = 1`
+    );
+    return { ...EMPTY_COUNTERS, ...row, users: await countOwners(db) };
   } catch (err) {
     console.warn(`counters unavailable: ${err instanceof Error ? err.message : String(err)}`);
-    return { created: 0, torched: 0, received: 0 };
+    return EMPTY_COUNTERS;
   }
 }

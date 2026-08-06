@@ -1,38 +1,30 @@
 # Configuration reference
 
-Cloudflare deployments set these in `wrangler.jsonc` under `vars` for non-secret values, or via `wrangler secret put` for secrets. Self-hosted deployments set all of them in `.env`.
+Non-secret values go in `wrangler.jsonc` under `vars`. Secrets go through `wrangler secret put`, which stores them encrypted with Cloudflare and never writes them to a file in this repo.
 
 | Variable | Secret? | Default | What it does |
 |---|---|---|---|
-| `DISPOSABLE_DOMAIN` | no | required (Cloudflare and self-hosted only) | The domain addresses get generated on. Not used, and not needed, in mail.tm mode. |
+| `DISPOSABLE_DOMAIN` | no | none | The domain addresses get generated on. Leave it empty to run in mail.tm mode instead, where addresses are provisioned on mail.tm's domain and no domain of your own is needed. |
 | `ADAPTERS` | no | `discord` | Comma separated list of enabled delivery adapters. |
 | `DISCORD_TOKEN` | yes | required, no default | Bot token. |
 | `DISCORD_PUBLIC_KEY` | yes | required, no default | Used to verify that interaction requests actually came from Discord. |
 | `DISCORD_APPLICATION_ID` | yes | required, no default | Used by `register-commands.ts`. |
 | `MAX_ACTIVE_ADDRESSES` | no | `5` | How many addresses one owner can have active at the same time. |
-| `ADDRESS_TTL_SECONDS` | no | `864000` (10 days) | How long a new or extended address lives before it expires. Addresses marked permanent ignore this, see [discord-adapter.md](discord-adapter.md#permanent-addresses). |
-| `RATE_LIMIT_<CMD>_WINDOW_SECONDS` | no | see below | Window length for a given command's rate limit. `<CMD>` is one of `NEW`, `LIST`, `EXTEND`, `TORCH`. |
+| `ADDRESS_TTL_SECONDS` | no | `864000` (10 days) | What a bare `/extend` uses when no `expiry` is given. `/new` is permanent by default and ignores this unless an explicit `expiry` is passed. |
+| `RATE_LIMIT_<CMD>_WINDOW_SECONDS` | no | see below | Window length for a given command's rate limit. `<CMD>` is one of `NEW`, `LIST`, `EXTEND`, `TORCH`, `NOTE`. |
 | `RATE_LIMIT_<CMD>_MAX` | no | see below | Max calls allowed per window. Set this to `0` and that command's rate limit is disabled entirely. |
 
-Rate limit defaults: `NEW` is 30 seconds and 1 call, `LIST`, `EXTEND`, and `TORCH` are each 60 seconds and 15 calls.
+Rate limit defaults: `NEW` is 30 seconds and 1 call, `LIST`, `EXTEND`, `TORCH`, and `NOTE` are each 60 seconds and 15 calls.
 
-These limits exist to keep a deployment other people can reach from getting hammered. They aren't safety rails baked in for your own protection, so there's no reason to leave them on if you don't want them. Worth knowing though: they're already scoped per owner, not shared across everyone using the bot, so if you're self-hosting just for yourself you probably won't ever notice them even at the defaults. There's usually nothing to change. If you do want them gone anyway, set every `RATE_LIMIT_*_MAX` to `0`.
+These limits exist to keep a deployment other people can reach from getting hammered. They aren't safety rails baked in for your own protection, so there's no reason to leave them on if you don't want them. Worth knowing though: they're already scoped per owner, not shared across everyone using the bot, so if you're running this just for yourself you probably won't ever notice them even at the defaults. If you do want them gone anyway, set every `RATE_LIMIT_*_MAX` to `0`.
 
-## Self-hosted only
+## Cron triggers
 
-These have no Cloudflare equivalent. See `.env.example` for the full commented list.
+Set in `wrangler.jsonc` under `triggers.crons` rather than as variables:
 
-| Variable | Default | What it does |
-|---|---|---|
-| `SMTP_PORT` | `25` | Port the SMTP server listens on for inbound mail. |
-| `SMTP_HOST` | `0.0.0.0` | Interface the SMTP server binds to. |
-| `HTTP_PORT` | `8787` | Port the interactions HTTP server listens on. Put a reverse proxy in front for HTTPS, see the self-host guide. |
-| `SQLITE_PATH` | `./cinderbox.db` | Where the SQLite database file lives. Gets created automatically if it doesn't exist. |
+| Schedule | What it does |
+|---|---|
+| `0 3 * * *` | Daily cleanup: expired and torched addresses, stale rate-limit rows, and the mail.tm account behind each address in mail.tm mode. |
+| `*/1 * * * *` | Polls mail.tm for new mail. Returns immediately without touching the database when `DISPOSABLE_DOMAIN` is set, so it costs nothing in domain mode. |
 
-## mail.tm mode only
-
-Also uses `HTTP_PORT`, `SQLITE_PATH`, and `ADAPTERS` from the table above. Does not use `DISPOSABLE_DOMAIN`, `SMTP_PORT`, or `SMTP_HOST` at all, there's no SMTP server in this mode.
-
-| Variable | Default | What it does |
-|---|---|---|
-| `MAILTM_POLL_INTERVAL_SECONDS` | `15` | How often to check mail.tm for new mail on each active address. |
+Cron triggers have a one minute floor, which is what puts mail.tm mode's delivery at roughly 30 seconds on average.
