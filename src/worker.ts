@@ -69,7 +69,12 @@ export default {
     if (request.method === "GET" && url.pathname === "/counters") {
       const db = createD1Executor(env.DB);
       const counters = await getCounters(db);
-      return Response.json(counters);
+      // Public and unauthenticated, and the user count is a full scan of the
+      // addresses table. Cache so hammering this can't run up D1 reads; the
+      // page only polls hourly anyway, so nothing here needs to be fresher.
+      return Response.json(counters, {
+        headers: { "Cache-Control": "public, max-age=300" },
+      });
     }
 
     if (request.method === "POST" && url.pathname === "/interactions") {

@@ -50,6 +50,8 @@ Run `/new` somewhere you have the bot. You should get a reply only you can see, 
 
 Mail always arrives as a DM, even if you installed the bot to a server and ran `/new` in a channel there. Commands can be run wherever the bot is available, but delivery never posts anywhere public, it only ever goes to the DM of whoever owns the address.
 
+Everything in a delivered email is treated as hostile, because anyone who learns an address can send to it. Markdown in the body, subject, and sender is escaped, so a message can't arrive as a link whose visible text says `yourbank.com` while pointing somewhere else. Links found in HTML mail are rendered as `label (<https://the-real-url>)` with the destination always visible, and mentions are stripped of their ability to ping.
+
 ## Commands
 
 Every reply is ephemeral, a Discord message type only the person who ran the command can see.

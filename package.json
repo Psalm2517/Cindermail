@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --experimental-sqlite --test \"test/*.test.ts\"",
     "setup": "node --experimental-strip-types scripts/setup.ts",
     "register-commands": "node --experimental-strip-types src/adapters/discord/register-commands.ts",
     "cf:dev": "wrangler dev",
