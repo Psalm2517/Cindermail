@@ -1,9 +1,11 @@
 import {
   countActiveAddresses,
   extendAddress,
+  getExpiryReminderPreference,
   listActiveAddresses,
   revokeAddress,
   setAddressNote,
+  setExpiryReminderPreference,
 } from "../../core/db.ts";
 import { checkAndIncrement } from "../../core/ratelimit.ts";
 import type { SqlExecutor } from "../../core/storage.ts";
@@ -40,7 +42,7 @@ export const MAX_EXPIRY_DAYS = 3650;
 
 interface DiscordInteractionOption {
   name: string;
-  value?: string | number;
+  value?: string | number | boolean;
 }
 
 export interface DiscordInteraction {
@@ -85,6 +87,13 @@ function getAddressOption(interaction: DiscordInteraction): string | undefined {
 function getIntegerOption(interaction: DiscordInteraction, name: string): number | undefined {
   const value = interaction.data?.options?.find((o) => o.name === name)?.value;
   return typeof value === "number" && Number.isInteger(value) ? value : undefined;
+}
+
+// Undefined means the option was omitted, which /remind treats as "just tell
+// me the current setting" rather than as false.
+function getBooleanOption(interaction: DiscordInteraction, name: string): boolean | undefined {
+  const value = interaction.data?.options?.find((o) => o.name === name)?.value;
+  return typeof value === "boolean" ? value : undefined;
 }
 
 interface Expiry {
@@ -172,6 +181,8 @@ export async function handleInteraction(
       );
     case "torch":
       return handleTorch(db, owner, getAddressOption(interaction));
+    case "remind":
+      return handleRemind(db, owner, getBooleanOption(interaction, "enabled"));
     default:
       return ephemeralReply("Unknown command.");
   }
@@ -280,4 +291,24 @@ async function handleTorch(db: SqlExecutor, owner: OwnerRef, address: string | u
     return ephemeralReply("Not found or not yours.");
   }
   return ephemeralReply(`Torched \`${address}\`.`);
+}
+
+// Omitting `enabled` reports the current setting instead of toggling, so
+// running the command to check where you stand can't accidentally change it.
+async function handleRemind(db: SqlExecutor, owner: OwnerRef, enabled: boolean | undefined) {
+  if (enabled === undefined) {
+    const current = await getExpiryReminderPreference(db, owner);
+    return ephemeralReply(
+      current
+        ? "Expiry reminders are **on**. `/remind enabled: false` turns them off."
+        : "Expiry reminders are **off**. `/remind enabled: true` turns them on."
+    );
+  }
+
+  await setExpiryReminderPreference(db, owner, enabled);
+  return ephemeralReply(
+    enabled
+      ? "Expiry reminders **on**. You'll get a DM about a day before an address expires, with time to `/extend` it. Addresses shorter-lived than that won't get one."
+      : "Expiry reminders **off**. Addresses still expire on schedule, you just won't hear about it first."
+  );
 }

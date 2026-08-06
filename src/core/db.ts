@@ -178,6 +178,9 @@ export async function countActiveAddresses(db: SqlExecutor, owner: OwnerRef): Pr
 // that clearing the flag later leaves a fresh expiry rather than one that
 // lapsed while the address was permanent. `permanent` undefined leaves the
 // flag as it is, which is what a plain /extend does.
+//
+// expiry_warned_at resets to NULL on every extend. Without that, an address
+// warned once would never warn again no matter how far its expiry moved.
 export async function extendAddress(
   db: SqlExecutor,
   owner: OwnerRef,
@@ -188,7 +191,7 @@ export async function extendAddress(
   const newExpiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
   const setPermanent = permanent === undefined ? "" : `, permanent = ${permanent ? 1 : 0}`;
   const result = await db.run(
-    `UPDATE addresses SET expires_at = ?${setPermanent}
+    `UPDATE addresses SET expires_at = ?, expiry_warned_at = NULL${setPermanent}
      WHERE address = ? AND owner_type = ? AND owner_id = ? AND revoked = 0`,
     newExpiresAt,
     address,
@@ -212,6 +215,71 @@ export async function revokeAddress(db: SqlExecutor, owner: OwnerRef, address: s
     await incrementTorchedCounter(db);
   }
   return result.changes > 0;
+}
+
+// Addresses due an expiry reminder: expiring inside the given window, still
+// live, not already warned, and belonging to someone who opted in. The join
+// is what enforces opt-in, since an owner with no preferences row can't
+// match.
+export async function listAddressesNeedingExpiryWarning(
+  db: SqlExecutor,
+  minSeconds: number,
+  maxSeconds: number
+): Promise<AddressRow[]> {
+  const now = Math.floor(Date.now() / 1000);
+  return db.all<AddressRow>(
+    `SELECT a.* FROM addresses a
+     JOIN owner_preferences p
+       ON p.owner_type = a.owner_type AND p.owner_id = a.owner_id
+     WHERE p.expiry_reminders = 1
+       AND a.revoked = 0
+       AND a.permanent = 0
+       AND a.expiry_warned_at IS NULL
+       AND a.expires_at >= ?
+       AND a.expires_at <= ?
+     ORDER BY a.expires_at ASC`,
+    now + minSeconds,
+    now + maxSeconds
+  );
+}
+
+export async function markExpiryWarned(db: SqlExecutor, addresses: string[]): Promise<void> {
+  if (addresses.length === 0) {
+    return;
+  }
+  const now = Math.floor(Date.now() / 1000);
+  const placeholders = addresses.map(() => "?").join(", ");
+  await db.run(
+    `UPDATE addresses SET expiry_warned_at = ? WHERE address IN (${placeholders})`,
+    now,
+    ...addresses
+  );
+}
+
+// Absent row means off, so reminders are opt-in rather than something people
+// receive without asking.
+export async function getExpiryReminderPreference(db: SqlExecutor, owner: OwnerRef): Promise<boolean> {
+  const row = await db.first<{ expiry_reminders: number }>(
+    `SELECT expiry_reminders FROM owner_preferences WHERE owner_type = ? AND owner_id = ?`,
+    owner.type,
+    owner.id
+  );
+  return row?.expiry_reminders === 1;
+}
+
+export async function setExpiryReminderPreference(
+  db: SqlExecutor,
+  owner: OwnerRef,
+  enabled: boolean
+): Promise<void> {
+  await db.run(
+    `INSERT INTO owner_preferences (owner_type, owner_id, expiry_reminders)
+     VALUES (?, ?, ?)
+     ON CONFLICT(owner_type, owner_id) DO UPDATE SET expiry_reminders = excluded.expiry_reminders`,
+    owner.type,
+    owner.id,
+    enabled ? 1 : 0
+  );
 }
 
 // Expired rows are removed once they are `graceSeconds` past expiry; revoked

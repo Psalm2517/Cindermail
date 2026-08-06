@@ -30,7 +30,7 @@ With `DISCORD_TOKEN` and `DISCORD_APPLICATION_ID` set in your environment:
 npm run register-commands
 ```
 
-This registers `/new`, `/list`, `/extend`, and `/torch` with Discord. It only needs to run again if you change a command's name or arguments, not every deploy.
+This registers `/new`, `/list`, `/extend`, `/note`, `/torch`, and `/remind` with Discord. It only needs to run again if you change a command's name or arguments, not every deploy.
 
 ## 4. Point Discord at your interactions endpoint
 
@@ -63,6 +63,7 @@ Every reply is ephemeral, a Discord message type only the person who ran the com
 | `/extend <address> [expiry]` | Changes when an address expires. | 15 per 60s |
 | `/note <address> [note]` | Labels an address. Blank clears it. | 15 per 60s |
 | `/torch <address>` | Revokes an address. | 15 per 60s |
+| `/remind [enabled]` | Opt in or out of expiry reminder DMs. Blank shows the current setting. | 15 per 60s |
 
 ## Notes
 
@@ -95,5 +96,21 @@ The one asymmetry worth remembering: a bare `/new` is permanent, but a bare `/ex
 `/extend` sets expiry relative to now, it doesn't add to what's left. Extending an address with 8 days remaining by `expiry: 5` leaves 5 days, not 13.
 
 Permanent addresses count against your active address limit like any other, and `/list` shows them as `permanent` instead of a countdown. Daily cleanup skips them, so `/torch` is the only thing that ends one.
+
+## Expiry reminders
+
+Off unless you ask for them:
+
+```
+/remind enabled: true     get a DM about a day before an address expires
+/remind enabled: false    stop
+/remind                   check which it currently is
+```
+
+The DM lists everything of yours expiring soon, with notes, so you can `/extend` what's still needed. One message covering all of them, not one per address.
+
+Two things worth knowing. It goes out with the daily cleanup cron, so the warning lands somewhere between 24 and 48 hours ahead rather than exactly a day. And an address that lives less than about two days never gets one, because no run ever sees it with a day still left, which is why a `/new expiry: 1` address won't warn.
+
+Extending an address re-arms its reminder against the new expiry.
 
 The 10 day default and the 5 address limit are both configurable, see [configuration.md](configuration.md).

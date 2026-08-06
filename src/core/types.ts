@@ -27,6 +27,11 @@ export interface DeliveryResult {
 export interface MailAdapter {
   name: string;
   deliver(owner: OwnerRef, mail: ParsedMail): Promise<DeliveryResult>;
+  // A message from the bot itself rather than a forwarded email, used for
+  // expiry reminders. Separate from deliver() because that one renders
+  // From/To/Subject headers, which would be nonsense on a notice like this.
+  // Same contract otherwise: returns a result, never throws.
+  notify(owner: OwnerRef, message: string): Promise<DeliveryResult>;
 }
 
 export interface AddressRow {
@@ -39,5 +44,6 @@ export interface AddressRow {
   revoked_at: number | null;
   permanent: number;
   note: string | null;
+  expiry_warned_at: number | null;
   receiver_data: string | null;
 }

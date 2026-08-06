@@ -5,6 +5,7 @@ import { handleInteraction, type DiscordInteraction } from "./adapters/discord/i
 import { createAddress, deleteExpiredAndRevoked, deleteStaleRateLimits, getCounters } from "./core/db.ts";
 import { createDispatcher } from "./core/dispatch.ts";
 import { handleInboundEmail } from "./core/email.ts";
+import { sendExpiryWarnings } from "./core/expiry-warning.ts";
 import type { MailAdapter, OwnerRef } from "./core/types.ts";
 import { renderCounterPage } from "./counter-page.ts";
 import { createMailtmAddress } from "./receivers/mailtm/address.ts";
@@ -150,6 +151,13 @@ export default {
     }
 
     const db = createD1Executor(env.DB);
+
+    // Before the cleanup below, so an address can't be deleted in the same
+    // run that was about to warn about it. Only reaches owners who opted in
+    // via /remind, and never throws, so a reminder failure can't stop
+    // cleanup from running.
+    await sendExpiryWarnings(db, createDispatcher(buildAdapters(env)));
+
     if (usesOwnDomain(env)) {
       await deleteExpiredAndRevoked(db, CLEANUP_GRACE_SECONDS);
       await deleteStaleRateLimits(db, STALE_RATE_LIMIT_SECONDS);

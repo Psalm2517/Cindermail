@@ -36,7 +36,7 @@ export const owner = (id: string): OwnerRef => ({ type: "discord", id });
 export function command(
   userId: string,
   name: string,
-  options: { name: string; value: string | number }[] = []
+  options: { name: string; value: string | number | boolean }[] = []
 ): DiscordInteraction {
   return { type: 2, member: { user: { id: userId } }, data: { name, options } };
 }
