@@ -24,11 +24,6 @@ function setEnvValue(content: string, key: string, value: string): string {
   return pattern.test(content) ? content.replace(pattern, line) : `${content.trimEnd()}\n${line}\n`;
 }
 
-// Commented-out in the example so mail.tm mode doesn't pick up a stale domain.
-function commentOutEnvValue(content: string, key: string): string {
-  return content.replace(new RegExp(`^${key}=.*$`, "m"), `# ${key}= (unused in mail.tm mode)`);
-}
-
 async function writeGuarded(path: string, content: string): Promise<boolean> {
   if (existsSync(path) && !(await confirm(`${path} already exists. Overwrite it?`))) {
     console.log(`Left ${path} alone. Nothing written.`);
@@ -69,16 +64,14 @@ async function askLimits(): Promise<Record<string, string>> {
   return result;
 }
 
-async function setupEnvPath(mode: "mailtm" | "selfhost"): Promise<void> {
+// Only the self-hosted path writes .env now. Both Cloudflare modes (domain
+// and mail.tm) configure wrangler.jsonc instead, see setupCloudflare.
+async function setupSelfHost(): Promise<void> {
   let content = readFileSync(".env.example", "utf8");
 
-  if (mode === "selfhost") {
-    const domain = await ask("\nDomain addresses get generated on (e.g. yourdomain.com)");
-    if (domain) {
-      content = setEnvValue(content, "DISPOSABLE_DOMAIN", domain);
-    }
-  } else {
-    content = commentOutEnvValue(content, "DISPOSABLE_DOMAIN");
+  const domain = await ask("\nDomain addresses get generated on (e.g. yourdomain.com)");
+  if (domain) {
+    content = setEnvValue(content, "DISPOSABLE_DOMAIN", domain);
   }
 
   for (const [key, value] of Object.entries(await askDiscordCredentials())) {
@@ -96,18 +89,14 @@ async function setupEnvPath(mode: "mailtm" | "selfhost"): Promise<void> {
   }
 
   console.log("\nNext:");
-  if (mode === "selfhost") {
-    console.log("  1. Point your domain's DNS at this machine: an A record for a mail");
-    console.log("     hostname, then an MX record for the domain pointing at it.");
-    console.log("     Full walkthrough: docs/deploy-selfhost.md");
-    console.log("  2. npm start");
-  } else {
-    console.log("  npm run start:mailtm");
-  }
+  console.log("  1. Point your domain's DNS at this machine: an A record for a mail");
+  console.log("     hostname, then an MX record for the domain pointing at it.");
+  console.log("     Full walkthrough: docs/deploy-selfhost.md");
+  console.log("  2. npm start");
   console.log("  Then finish the Discord side: docs/discord-adapter.md");
 }
 
-async function setupCloudflare(): Promise<void> {
+async function setupCloudflare(mode: "domain" | "mailtm"): Promise<void> {
   try {
     execFileSync("npx", ["wrangler", "--version"], { stdio: "ignore" });
   } catch {
@@ -123,9 +112,16 @@ async function setupCloudflare(): Promise<void> {
   // silently, so a stray wrangler.toml would just be ignored.
   let content = readFileSync("wrangler.jsonc", "utf8");
 
-  const domain = await ask("\nDomain addresses get generated on (e.g. yourdomain.com)");
-  if (domain) {
-    content = content.replace(/("DISPOSABLE_DOMAIN":\s*)"[^"]*"/, `$1"${domain}"`);
+  if (mode === "domain") {
+    const domain = await ask("\nDomain addresses get generated on (e.g. yourdomain.com)");
+    if (domain) {
+      content = content.replace(/("DISPOSABLE_DOMAIN":\s*)"[^"]*"/, `$1"${domain}"`);
+    }
+  } else {
+    // An empty DISPOSABLE_DOMAIN is what puts the Worker in mail.tm mode.
+    // Emptied rather than removed so it's obvious what to fill in later to
+    // switch over to a domain.
+    content = content.replace(/("DISPOSABLE_DOMAIN":\s*)"[^"]*"/, `$1""`);
   }
 
   for (const [key, value] of Object.entries(await askLimits())) {
@@ -167,11 +163,18 @@ async function setupCloudflare(): Promise<void> {
   }
 
   console.log("\nNext, the parts that can't be scripted:");
-  console.log("  1. Check your domain's MX records point at Cloudflare Email Routing.");
-  console.log("  2. npm run cf:db:init");
-  console.log("  3. npm run cf:deploy");
-  console.log("  4. Add a catch-all Email Routing rule whose action is this Worker.");
-  console.log("  5. wrangler secret put DISCORD_TOKEN (and PUBLIC_KEY, APPLICATION_ID)");
+  if (mode === "domain") {
+    console.log("  1. Check your domain's MX records point at Cloudflare Email Routing.");
+    console.log("  2. npm run cf:db:init");
+    console.log("  3. wrangler secret put DISCORD_TOKEN (and PUBLIC_KEY, APPLICATION_ID)");
+    console.log("  4. npm run cf:deploy");
+    console.log("  5. Add a catch-all Email Routing rule whose action is this Worker.");
+  } else {
+    console.log("  1. npm run cf:db:init");
+    console.log("  2. wrangler secret put DISCORD_TOKEN (and PUBLIC_KEY, APPLICATION_ID)");
+    console.log("  3. npm run cf:deploy");
+    console.log("  No DNS or Email Routing to set up, mail.tm handles receiving.");
+  }
   console.log("  Full walkthrough: docs/deploy-cloudflare.md, then docs/discord-adapter.md");
 }
 
@@ -183,21 +186,24 @@ async function main(): Promise<void> {
     console.log(`\nWarning: Node.js ${process.versions.node} is older than the supported v18.`);
   }
 
-  console.log("\nHow should mail be received?\n");
-  console.log("  1) mail.tm      quickest. No domain, no DNS, no server.");
-  console.log("  2) Self-hosted  your domain, your machine, receives on port 25.");
-  console.log("  3) Cloudflare   your domain, no server, Email Routing + D1.\n");
+  console.log("\nWhere should this run?\n");
+  console.log("  1) Cloudflare, mail.tm mode   no domain, no server. Quickest.");
+  console.log("  2) Cloudflare, your domain    no server. Needs a domain.");
+  console.log("  3) Self-hosted                your domain, your machine, port 25.\n");
+  console.log("  The two Cloudflare options are one Worker, switchable later.");
+  console.log("  See README.md for the tradeoffs, mail.tm's domain is blocked");
+  console.log("  by some signup forms.\n");
 
   const choice = await ask("Pick one", "1");
   switch (choice) {
     case "1":
-      await setupEnvPath("mailtm");
+      await setupCloudflare("mailtm");
       break;
     case "2":
-      await setupEnvPath("selfhost");
+      await setupCloudflare("domain");
       break;
     case "3":
-      await setupCloudflare();
+      await setupSelfHost();
       break;
     default:
       console.log(`Not one of the options: ${choice}`);

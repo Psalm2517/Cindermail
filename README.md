@@ -18,42 +18,39 @@ Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets
 
 ![Example delivery](docs/images/example-dm.png)
 
+## Pick a setup
+
+Three ways to run it. All three deliver to Discord identically, the difference is only where addresses live and where the code runs.
+
+| | Addresses on | Runs on | You need |
+|---|---|---|---|
+| **[Cloudflare](docs/deploy-cloudflare.md)** | your domain | Cloudflare | a domain, a Cloudflare account |
+| **[Cloudflare, mail.tm mode](docs/deploy-cloudflare.md#mailtm-mode-no-domain)** | mail.tm's domain | Cloudflare | a Cloudflare account |
+| **[Self-hosted](docs/deploy-selfhost.md)** | your domain | your own machine | a domain, a server, port 25 |
+
+The two Cloudflare rows are the same Worker and the same guide. One setting (`DISPOSABLE_DOMAIN`) decides which mode it runs in, so you can switch later without redeploying.
+
+**No domain?** Use mail.tm mode. Its one real drawback: mail.tm is a known disposable-mail provider, so some signup forms recognize and block its domain. Running your own domain is what avoids that.
+
+**Don't want Cloudflare?** Self-hosted is the only path with no Cloudflare account at all.
+
 ## Quick start
 
 ```bash
 npm install && npm run setup
 ```
 
-Asks which way you want to receive mail, then writes the config file for you. The default path needs no domain, no DNS, and no server.
+Asks which of the three you want, then writes the config file for you.
 
-## Two moving parts
-
-A core that generates addresses, tracks who owns them, parses incoming mail, and doesn't care where any of it came from or where it's going. Two things plug into it:
-
-- **Where mail comes from.** mail.tm (no domain, no server), your own server (SMTP + SQLite), or Cloudflare (Email Routing + D1). The last two run addresses on a domain you own.
-- **Where mail goes.** Discord.
-
-## Setup guides
-
-- **[mail.tm](docs/deploy-mailtm.md)**: quickest, no domain or server at all. Read the caveat in that guide first, mail.tm's domain is a known temp-mail domain and some signup forms block it. [Runs on Cloudflare Workers too](docs/deploy-cloudflare-mailtm.md) if you'd rather not keep a Node process alive yourself.
-- **[Cloudflare Workers](docs/deploy-cloudflare.md)**: your own domain, no server to run, just a Cloudflare account. A [Deploy to Cloudflare button](#deploy-to-cloudflare) is also available if you'd rather skip cloning the repo.
-- **[Self-hosted](docs/deploy-selfhost.md)**: your own machine, your own domain, your own uptime.
-- **[Discord setup](docs/discord-adapter.md)**: same steps regardless of which of the above you picked. Commands (`/new` `/list` `/extend` `/torch`) are documented there.
-
-## Deploy to Cloudflare
-
-A shortcut for the Cloudflare Workers path above, not a separate way to get started. If you're not already set on Cloudflare, use Quick start instead.
+Or skip the clone entirely and deploy straight to Cloudflare:
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
 
-Forks this repo into your own Cloudflare account, creates a brand new D1 database (does not touch this project's own database), deploys the Worker, and prompts you for the three Discord secrets. Still required afterward, none of it optional:
+The button creates a D1 database and prompts for your Discord secrets, but it does not finish the job. Four things are still on you afterward, and none are optional: load the schema, set (or clear) `DISPOSABLE_DOMAIN` to pick a mode, wire up Email Routing if you chose a domain, and register the Discord commands. [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) covers all four in order.
 
-1. Load the database schema. The button doesn't run `schema.sql`, your new database is empty until you run `npx wrangler d1 execute cinderbox --remote --file=schema.sql` yourself.
-2. Pick a mode. The deployed Worker runs whichever way [wrangler.jsonc](wrangler.jsonc)'s `DISPOSABLE_DOMAIN` is set, which starts out as this project's domain, not yours. In the Cloudflare dashboard, under the Worker's Settings, either set it to a domain you own or clear it entirely to run on mail.tm with no domain at all.
-3. Only if you set a domain: point it at Cloudflare Email Routing, then add a catch-all rule targeting the new Worker. Nothing to do here in mail.tm mode.
-4. Register the Discord commands (`npm run register-commands`) and set the Interactions Endpoint URL in the Discord Developer Portal.
+## Then set up Discord
 
-Full walkthrough, in order: [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) for the domain-based mode, [docs/deploy-cloudflare-mailtm.md](docs/deploy-cloudflare-mailtm.md) for mail.tm mode.
+Every path ends the same way: [docs/discord-adapter.md](docs/discord-adapter.md). That's where the commands (`/new` `/list` `/extend` `/torch`) are documented too.
 
 ## How it works
 

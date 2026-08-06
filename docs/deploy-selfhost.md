@@ -2,7 +2,7 @@
 
 This covers getting mail received and stored on a machine you control, with no Cloudflare account involved at all. Discord setup is a separate step in [discord-adapter.md](discord-adapter.md), same as the Cloudflare path, do that once this part's working.
 
-This path needs a domain you own and a machine that can receive on port 25. If you'd rather not deal with either, [deploy-mailtm.md](deploy-mailtm.md) needs neither. `npm run setup` handles the `.env` parts of steps 1 and 3 below for you if you do want this path.
+This path needs a domain you own and a machine that can receive on port 25. If you'd rather not deal with either, [deploy-cloudflare.md](deploy-cloudflare.md#mailtm-mode-no-domain) needs neither. `npm run setup` handles the `.env` parts of steps 1 and 3 below for you if you do want this path.
 
 ## What you need
 
@@ -84,3 +84,30 @@ docker run -d \
 ```
 
 The image runs as a non-root user and listens on unprivileged port `2525` internally by default. `-p 25:2525` maps the real port 25 to it at the Docker level, so the container itself never needs elevated privileges to bind a low port. `SQLITE_PATH` defaults to `/data/cinderbox.db` inside the image, and the named volume keeps that data around across container recreation.
+
+## Running mail.tm on your own machine instead
+
+If you want mail.tm's no-domain addresses but specifically don't want Cloudflare, this mode polls mail.tm from the same Node process instead of running an SMTP server. Most people wanting mail.tm should use [Cloudflare's mail.tm mode](deploy-cloudflare.md#mailtm-mode-no-domain) instead, which needs no server to keep alive and polls just as well. This exists for people avoiding Cloudflare entirely.
+
+Everything above applies except step 2 (no DNS to point) and the SMTP parts. Leave `DISPOSABLE_DOMAIN` unset in `.env`, then:
+
+```bash
+npm run start:mailtm
+```
+
+This polls mail.tm every 15 seconds by default (`MAILTM_POLL_INTERVAL_SECONDS`), faster than the Cloudflare version's one minute cron floor. No SMTP server, no inbound port. You still need step 5's HTTPS reverse proxy for Discord's webhook, same as above.
+
+Read [the mail.tm caveats](deploy-cloudflare.md#mailtm-mode-no-domain) before picking this: addresses on mail.tm's domain get blocked by some signup forms.
+
+With Docker, override the command and drop the SMTP port mapping since nothing listens on it in this mode:
+
+```bash
+docker run -d \
+  --name cinderbox-mailtm \
+  --restart unless-stopped \
+  --env-file .env \
+  -p 8787:8787 \
+  -v cinderbox-data:/data \
+  cinderbox \
+  node --experimental-strip-types src/receivers/mailtm/run.ts
+```
