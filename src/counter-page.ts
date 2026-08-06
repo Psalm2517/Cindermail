@@ -137,6 +137,16 @@ export function renderCounterPage(version: string): string {
   <div class="version">v${version}</div>
 </main>
 <script>
+  // 30 minutes: how long a fetched result is trusted for, and the minimum
+  // gap between hits to /counters. Cached in localStorage rather than just
+  // relying on setInterval, since a plain interval resets on every page
+  // load/refresh, letting someone who keeps reloading poll far more often
+  // than intended. The cache makes that impossible: a reload within the
+  // window renders instantly from what's stored and only schedules the next
+  // real fetch for whatever time is left.
+  const POLL_INTERVAL_MS = 30 * 60 * 1000;
+  const CACHE_KEY = 'cindermail-counters-v1';
+
   let last = { created: null, torched: null, received: null, users: null };
 
   function setStat(id, value) {
@@ -157,6 +167,34 @@ export function renderCounterPage(version: string): string {
     text.textContent = ok ? 'All systems operational' : 'Unable to reach the service';
   }
 
+  function renderData(data) {
+    setStat('created', data.created);
+    setStat('torched', data.torched);
+    setStat('received', data.received);
+    setStat('users', data.users);
+    setStatus(true);
+  }
+
+  // Both wrapped in try/catch: localStorage throws in some private-browsing
+  // modes rather than just being empty, and a failure here should degrade to
+  // "always fetch", never break the page.
+  function loadCache() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(CACHE_KEY));
+      return typeof parsed.timestamp === 'number' && parsed.data ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveCache(data) {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+    } catch {
+      // Nothing cached this round; next load just fetches fresh instead.
+    }
+  }
+
   async function refresh() {
     try {
       const res = await fetch('/counters');
@@ -165,18 +203,26 @@ export function renderCounterPage(version: string): string {
         return;
       }
       const data = await res.json();
-      setStat('created', data.created);
-      setStat('torched', data.torched);
-      setStat('received', data.received);
-      setStat('users', data.users);
-      setStatus(true);
+      renderData(data);
+      saveCache(data);
     } catch {
       // Next tick retries, status pill already reflects the failure.
       setStatus(false);
     }
   }
-  refresh();
-  setInterval(refresh, 60 * 60 * 1000);
+
+  const cached = loadCache();
+  if (cached) {
+    renderData(cached.data);
+    const remaining = Math.max(0, POLL_INTERVAL_MS - (Date.now() - cached.timestamp));
+    setTimeout(() => {
+      refresh();
+      setInterval(refresh, POLL_INTERVAL_MS);
+    }, remaining);
+  } else {
+    refresh();
+    setInterval(refresh, POLL_INTERVAL_MS);
+  }
 
   // A handful of embers drifting up from the bottom of the screen, spaced
   // out on a stagger so they don't all rise in lockstep.

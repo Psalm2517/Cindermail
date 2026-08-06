@@ -71,7 +71,8 @@ export default {
       const counters = await getCounters(db);
       // Public and unauthenticated, and the user count is a full scan of the
       // addresses table. Cache so hammering this can't run up D1 reads; the
-      // page only polls hourly anyway, so nothing here needs to be fresher.
+      // page's own client-side cache only hits this every 30 minutes at
+      // most anyway, so nothing here needs to be fresher.
       return Response.json(counters, {
         headers: { "Cache-Control": "public, max-age=300" },
       });
