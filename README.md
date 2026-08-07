@@ -26,17 +26,26 @@ No domain? It runs on mail.tm's domain instead, with nothing to buy. Same Worker
 
 ## Deploy
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
-
-One click gets you a Worker and a database. It doesn't finish the job on its own: you still need to load the schema, point `DISPOSABLE_DOMAIN` at your domain (or clear it for mail.tm mode), wire up Email Routing, and register the Discord commands.
-
-Prefer to do it locally, or want the wizard to handle the config?
-
 ```bash
+git clone https://github.com/Psalm2517/Cindermail.git
+cd Cindermail
 npm install && npm run setup
 ```
 
-Either way, [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) is the walkthrough, then [docs/discord-adapter.md](docs/discord-adapter.md) for the Discord side.
+The wizard asks for your domain (or skips it for mail.tm mode), creates the D1 database, and sets your Discord secrets. Then load the schema, deploy, point your domain at Email Routing, and register the slash commands: [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) walks through all of it, then [docs/discord-adapter.md](docs/discord-adapter.md) for the Discord side.
+
+<details>
+<summary>There's also a Deploy to Cloudflare button, but read this first</summary>
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
+
+It forks the repo, creates a database, and deploys a Worker without you touching a terminal. It does not finish the job, and it isn't less work overall.
+
+Registering the slash commands is a script in this repo with no dashboard equivalent, so you need a local clone regardless. On top of that the button deploys with whatever `wrangler.jsonc` currently holds, which is this project's own domain, not yours, so you'll be editing config and redeploying anyway.
+
+Worth it if you specifically want the Worker and database provisioned for you. Otherwise the clone above gets you to the same place with fewer corrections.
+
+</details>
 
 ## Commands
 
