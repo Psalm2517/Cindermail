@@ -2,7 +2,7 @@
 
 # Cindermail 🔥
 
-**Disposable email delivered to chat, not another inbox to check.**
+**Disposable email delivered where you already are.**
 
 [![Release](https://img.shields.io/github/v/release/Psalm2517/Cindermail)](https://github.com/Psalm2517/Cindermail/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
