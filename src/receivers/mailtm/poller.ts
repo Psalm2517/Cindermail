@@ -48,12 +48,3 @@ export async function pollOnce(db: SqlExecutor, dispatcher: Dispatcher): Promise
   }
 }
 
-export function startMailtmPoller(db: SqlExecutor, dispatcher: Dispatcher, intervalMs: number) {
-  const tick = () => {
-    pollOnce(db, dispatcher).catch((err: unknown) =>
-      console.error("mail.tm poll cycle failed:", err instanceof Error ? err.message : err)
-    );
-  };
-  tick();
-  return setInterval(tick, intervalMs);
-}
