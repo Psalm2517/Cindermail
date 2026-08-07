@@ -2,6 +2,13 @@
 
 This is what actually gets mail delivered. [deploy-cloudflare.md](deploy-cloudflare.md) only gets it as far as received and stored, so finish that first. Identical in either mode.
 
+## What you need
+
+- A cloned repo with `npm install` run in it. Steps 2 and 3 are commands, and `wrangler` comes from those dependencies rather than a global install.
+- A deployed Worker, so you have a URL for step 4.
+
+If you deployed with the button, clone your fork now if you haven't. Registering slash commands is a script with no dashboard equivalent, so there's no way around having the repo locally.
+
 ## 1. Create a Discord application
 
 At [discord.com/developers/applications](https://discord.com/developers/applications), create an application and give it a bot user under the Bot tab.
@@ -22,12 +29,14 @@ npx wrangler secret put DISCORD_APPLICATION_ID
 
 Each prompts for the value. Stored encrypted by Cloudflare, never written to a file here. `npm run setup` offers to run them for you.
 
+Skip this if the deploy button already collected them.
+
 ## 3. Register the slash commands
 
-With `DISCORD_TOKEN` and `DISCORD_APPLICATION_ID` in your environment:
+This one reads them from your shell rather than from Cloudflare, since secrets there can't be read back:
 
 ```bash
-npm run register-commands
+DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... npm run register-commands
 ```
 
 Only needs re-running when a command's name or arguments change, not every deploy.

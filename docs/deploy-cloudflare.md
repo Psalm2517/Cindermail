@@ -7,13 +7,20 @@ One Worker, one D1 database, two modes:
 
 `DISPOSABLE_DOMAIN` is the only difference. Set it for the first, leave it unset for the second. Switching later is one command.
 
-`npm run setup` does steps 2 and 3 interactively. The [deploy button](../README.md#deploy) does 1 through 3 and 5, leaving you the rest.
+> **Used the [deploy button](../README.md#deploy)?** It has already created your database, set your secrets, and deployed the Worker. You still need to:
+>
+> - **Step 1**, cloning *your fork* rather than this repo, since the remaining commands run from it.
+> - **The schema load at the end of step 2.** The button leaves the database empty. Skip the `d1 create` above it, you already have one.
+> - **Step 4**, if you're using your own domain.
+> - **Step 6.**
 
 ## What you need
 
-- Node.js 18+, only for running these commands.
+- Node.js 18+, only for running these commands. Nothing runs locally once deployed.
 - A Cloudflare account.
 - A domain in that account, **domain mode only**.
+
+`wrangler` comes from `npm install` below, so there's no global install to do. Every command here runs from the repo directory.
 
 ## 1. Clone and install
 
@@ -22,6 +29,8 @@ git clone https://github.com/Psalm2517/Cindermail.git
 cd Cindermail
 npm install
 ```
+
+Used the button? Clone your fork instead, so the `database_id` in its `wrangler.jsonc` matches the database that was provisioned for you.
 
 ## 2. Create the database
 
@@ -34,6 +43,8 @@ Put the `database_id` it prints into `wrangler.jsonc`, then load the schema:
 ```bash
 npm run cf:db:init
 ```
+
+Button users start here: you have a database already, but it's empty until you run that.
 
 <details>
 <summary>Why <code>wrangler.jsonc</code> is committed</summary>
