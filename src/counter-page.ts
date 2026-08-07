@@ -116,6 +116,7 @@ export function renderCounterPage(version: string): string {
   .github:hover { color: #ffcaa1; }
   .github svg { width: 0.9rem; height: 0.9rem; fill: currentColor; }
   .version { margin-top: 0.5rem; font-size: 0.7rem; color: #5c4432; }
+  .note { margin-top: 1rem; font-size: 0.75rem; color: #7a5b41; max-width: 320px; }
 </style>
 </head>
 <body>
@@ -135,6 +136,7 @@ export function renderCounterPage(version: string): string {
     Source code
   </a>
   <div class="version">v${version}</div>
+  <p class="note">Live status for private hosted instance.</p>
 </main>
 <script>
   // 30 minutes: how long a fetched result is trusted for, and the minimum

@@ -78,6 +78,11 @@ The Worker root serves a status page with running totals, also available as JSON
 
 Code layout and tests: [docs/architecture.md](docs/architecture.md). Every setting: [docs/configuration.md](docs/configuration.md).
 
+## Under consideration (contingent on demand)
+
+- Telegram delivery adapter
+- Publicly hosted instance
+
 ## License
 
 MIT. See [LICENSE](./LICENSE).
