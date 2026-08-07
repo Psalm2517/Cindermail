@@ -35,7 +35,9 @@ Everything else, commands, storage, delivery, cleanup, the status page, is ident
 npm test
 ```
 
-Node's built-in runner against a real in-memory SQLite database, no dependencies and no mocks: D1 speaks the same dialect, and `src/storage/d1.ts` implements the same `SqlExecutor` interface these run through. Covers markdown escaping of delivered mail, the expiry and note command semantics, counter behaviour (including that a missing `counters` table can't stop mail being delivered), and that `schema.sql` agrees with the migration chain.
+Node's built-in runner against a real in-memory SQLite database. No dependencies, no mocks: D1 speaks the same dialect, and these run through the same `SqlExecutor` interface `src/storage/d1.ts` implements.
+
+Covers command semantics, mail rendering, counters, expiry reminders, and that `schema.sql` still agrees with the migration chain. Several cases exist because a failure there once broke mail delivery: a missing `counters` table, and anything thrown by a reminder taking out the cleanup that runs alongside it.
 
 ## Extending it
 

@@ -1,16 +1,16 @@
 # Setting up the Discord adapter
 
-This is the step that actually gets mail delivered to you. [deploy-cloudflare.md](deploy-cloudflare.md) only gets mail as far as "received and stored," so finish that first. It's the same either way, domain mode or mail.tm mode.
+This is what actually gets mail delivered. [deploy-cloudflare.md](deploy-cloudflare.md) only gets it as far as received and stored, so finish that first. Identical in either mode.
 
 ## 1. Create a Discord application
 
-Go to [discord.com/developers/applications](https://discord.com/developers/applications) and create a new application. Give it a bot user under the Bot tab if it doesn't already have one.
+At [discord.com/developers/applications](https://discord.com/developers/applications), create an application and give it a bot user under the Bot tab.
 
-From the General Information and Bot tabs, grab three values:
+Three values, from General Information and Bot:
 
-- The bot token
-- The public key (labeled "Public Key" on General Information)
-- The application ID
+- Bot token
+- Public key
+- Application ID
 
 ## 2. Give it those credentials
 
@@ -20,95 +20,95 @@ npx wrangler secret put DISCORD_PUBLIC_KEY
 npx wrangler secret put DISCORD_APPLICATION_ID
 ```
 
-Each one prompts you to paste the value in. They're stored encrypted by Cloudflare, never written to a file in this repo. `npm run setup` offers to run these three for you.
+Each prompts for the value. Stored encrypted by Cloudflare, never written to a file here. `npm run setup` offers to run them for you.
 
 ## 3. Register the slash commands
 
-With `DISCORD_TOKEN` and `DISCORD_APPLICATION_ID` set in your environment:
+With `DISCORD_TOKEN` and `DISCORD_APPLICATION_ID` in your environment:
 
 ```bash
 npm run register-commands
 ```
 
-This registers `/new`, `/list`, `/extend`, `/note`, `/torch`, and `/remind` with Discord. It only needs to run again if you change a command's name or arguments, not every deploy.
+Only needs re-running when a command's name or arguments change, not every deploy.
 
-## 4. Point Discord at your interactions endpoint
+## 4. Point Discord at your endpoint
 
-Back in the Discord Developer Portal, on the General Information tab, set the Interactions Endpoint URL to your Worker's URL plus `/interactions`:
+On General Information, set the Interactions Endpoint URL to your Worker's URL plus `/interactions`:
 
 ```
 https://<your-worker>.<your-subdomain>.workers.dev/interactions
 ```
 
-Discord verifies this by sending a signed ping the moment you save it. If that fails, it's almost always one of two things: the `DISCORD_PUBLIC_KEY` you set doesn't match the app's actual Verify Key, or the Worker isn't deployed yet.
+Discord verifies it with a signed ping on save. A failure is almost always a `DISCORD_PUBLIC_KEY` that doesn't match the app's Verify Key, or a Worker that isn't deployed yet.
 
 ## 5. Try it
 
-The bot works installed to a server, or installed to just your own account for DM only use, both are enabled by default by `register-commands.ts`. Grab an install link from the Installation tab in the Developer Portal.
+Works installed to a server or to just your own account, both enabled by default. Install link is on the Installation tab.
 
-Run `/new` somewhere you have the bot. You should get a reply only you can see, with a fresh address. Send that address a test email and you should get a DM back within a few seconds.
+Run `/new`, send the address a test email, expect a DM within seconds.
 
-Mail always arrives as a DM, even if you installed the bot to a server and ran `/new` in a channel there. Commands can be run wherever the bot is available, but delivery never posts anywhere public, it only ever goes to the DM of whoever owns the address.
+Mail always arrives as a DM even if you ran `/new` in a channel. Commands work anywhere the bot is; delivery only ever goes to the owner's DMs.
 
 ## Commands
 
-Every reply is ephemeral, a Discord message type only the person who ran the command can see.
+Replies are ephemeral: only the person who ran the command sees them.
 
-| Command | What it does | Default rate limit |
+| Command | What it does | Rate limit |
 |---|---|---|
-| `/new [expiry] [note]` | Creates an address. Permanent unless you set `expiry`. | 1 per 30s |
-| `/list` | Lists your active addresses, their notes, and when they expire. | 15 per 60s |
+| `/new [expiry] [note]` | Creates an address. Permanent unless `expiry` is set. | 1 per 30s |
+| `/list` | Your addresses, notes, and expiry. | 15 per 60s |
 | `/extend <address> [expiry]` | Changes when an address expires. | 15 per 60s |
 | `/note <address> [note]` | Labels an address. Blank clears it. | 15 per 60s |
 | `/torch <address>` | Revokes an address. | 15 per 60s |
-| `/remind [enabled]` | Opt in or out of expiry reminder DMs. Blank shows the current setting. | 15 per 60s |
+| `/remind [enabled]` | Expiry reminder DMs. Blank shows the setting. | 15 per 60s |
+
+## Expiry
+
+`expiry` is in **days** on both `/new` and `/extend`. `0` means permanent.
+
+```
+/new                                  permanent
+/new expiry: 7                        expires in 7 days
+/new expiry: 0                        permanent
+
+/extend address: x@you.com            10 days from now
+/extend address: x@you.com expiry: 5  5 days from now
+/extend address: x@you.com expiry: 0  permanent
+```
+
+One asymmetry: bare `/new` is permanent, bare `/extend` uses the 10 day default. `/extend` should do what its name says.
+
+`/extend` sets expiry relative to now rather than adding to what's left. An address with 8 days left extended by `expiry: 5` has 5 days, not 13.
+
+Permanent addresses count against your limit, and `/list` shows them as `permanent` rather than a countdown. Cleanup skips them, so `/torch` is what ends one.
 
 ## Notes
 
-A random ten character local part tells you nothing about what you used it for. `note` is an optional label, up to 80 characters, that shows up next to the address in `/list`:
+A random local part tells you nothing about what you used it for. `note` is an optional label, up to 80 characters, shown in `/list`:
 
 ```
 /new note: netflix trial
 /note address: x7k2p9qzrm@you.com note: bank alerts
-/note address: x7k2p9qzrm@you.com            removes the label
+/note address: x7k2p9qzrm@you.com            clears it
 ```
 
-Notes are only ever shown back to the person who owns the address, in the same ephemeral replies as everything else.
-
-## Expiry
-
-`expiry` is a number of **days** on both `/new` and `/extend`. `0` always means permanent.
-
-```
-/new                                  permanent, good until you torch it
-/new expiry: 7                        expires in 7 days
-/new expiry: 0                        permanent, same as leaving it off
-
-/extend address: x@you.com            pushes expiry out 10 days
-/extend address: x@you.com expiry: 5  expires 5 days from now
-/extend address: x@you.com expiry: 0  makes it permanent
-```
-
-The one asymmetry worth remembering: a bare `/new` is permanent, but a bare `/extend` gives you the 10 day default. `/extend` without arguments should do what its name says.
-
-`/extend` sets expiry relative to now, it doesn't add to what's left. Extending an address with 8 days remaining by `expiry: 5` leaves 5 days, not 13.
-
-Permanent addresses count against your active address limit like any other, and `/list` shows them as `permanent` instead of a countdown. Daily cleanup skips them, so `/torch` is the only thing that ends one.
+Only ever shown back to the address's owner.
 
 ## Expiry reminders
 
-Off unless you ask for them:
+Off until asked for:
 
 ```
-/remind enabled: true     get a DM about a day before an address expires
+/remind enabled: true     DM about a day before an address expires
 /remind enabled: false    stop
-/remind                   check which it currently is
+/remind                   current setting
 ```
 
-The DM lists everything of yours expiring soon, with notes, so you can `/extend` what's still needed. One message covering all of them, not one per address.
+One DM covering everything of yours expiring soon, with notes, so you can `/extend` what you still need.
 
-Two things worth knowing. It goes out with the daily cleanup cron, so the warning lands somewhere between 24 and 48 hours ahead rather than exactly a day. And an address that lives less than about two days never gets one, because no run ever sees it with a day still left, which is why a `/new expiry: 1` address won't warn.
+It rides the daily cleanup cron, so it lands 24 to 48 hours ahead rather than exactly a day. An address living under about two days never gets one, since no run sees it with a day still left: `/new expiry: 1` won't warn.
 
-Extending an address re-arms its reminder against the new expiry.
+`/extend` re-arms the reminder against the new expiry.
 
-The 10 day default and the 5 address limit are both configurable, see [configuration.md](configuration.md).
+Defaults are configurable, see [configuration.md](configuration.md).
