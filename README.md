@@ -26,24 +26,22 @@ No domain? It runs on mail.tm's domain instead, with nothing to buy. Same Worker
 
 ## Deploy
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
+
+Forks the repo, creates the D1 database, deploys the Worker, and prompts you for your own domain and Discord credentials. Leave the domain blank to run on mail.tm's instead, which needs no domain, no DNS and no Email Routing at all.
+
+Two things it can't do for you: loading the database schema, and registering the slash commands with Discord (that one's a script with no dashboard equivalent). Both are covered in [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md), then [docs/discord-adapter.md](docs/discord-adapter.md).
+
+<details>
+<summary>Prefer a local clone</summary>
+
 ```bash
 git clone https://github.com/Psalm2517/Cindermail.git
 cd Cindermail
 npm install && npm run setup
 ```
 
-The wizard asks for your domain (or skips it for mail.tm mode), creates the D1 database, and sets your Discord secrets. Then load the schema, deploy, point your domain at Email Routing, and register the slash commands: [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) walks through all of it, then [docs/discord-adapter.md](docs/discord-adapter.md) for the Discord side.
-
-<details>
-<summary>There's also a Deploy to Cloudflare button, but read this first</summary>
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
-
-It forks the repo, creates a database, and deploys a Worker without you touching a terminal. It does not finish the job, and it isn't less work overall.
-
-Registering the slash commands is a script in this repo with no dashboard equivalent, so you need a local clone regardless. On top of that the button deploys with whatever `wrangler.jsonc` currently holds, which is this project's own domain, not yours, so you'll be editing config and redeploying anyway.
-
-Worth it if you specifically want the Worker and database provisioned for you. Otherwise the clone above gets you to the same place with fewer corrections.
+The wizard asks the same questions the button does and writes the config for you, then the same two guides pick up from there. Same destination, and what you want if you're going to be changing the code anyway.
 
 </details>
 
@@ -83,3 +81,9 @@ Code layout, tests, and how to add a delivery adapter: [docs/architecture.md](do
 ## License
 
 MIT. See [LICENSE](./LICENSE).
+
+<div align="center">
+
+[![Built with Cloudflare](https://workers.cloudflare.com/built-with-cloudflare.svg)](https://cloudflare.com)
+
+</div>

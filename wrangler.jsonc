@@ -11,16 +11,16 @@
   // file exists it is the source of truth for vars and bindings, so
   // dashboard-only entries not listed here stop applying.
   //
-  // No secrets here: database_id and the domain are identifiers, not
-  // credentials. Discord secrets still live in the dashboard
-  // (Settings > Variables and secrets), untouched by this file.
+  // Deployment-specific values are deliberately NOT here. DISPOSABLE_DOMAIN
+  // and MAX_ACTIVE_ADDRESSES are set per deployment with
+  // `wrangler secret put`, which survives deploys and isn't committed, so
+  // nobody inherits someone else's domain by cloning or using the deploy
+  // button. The button prompts for anything listed in .dev.vars.example.
   //
-  // DISPOSABLE_DOMAIN picks which mode the Worker runs in. Set it to a
-  // domain you own to receive mail through Email Routing. Clear it (or
-  // remove the line) to run on mail.tm instead: no domain, no DNS, no
-  // Email Routing, addresses get provisioned on mail.tm's domain and their
-  // API is polled on the frequent cron below. See
-  // docs/deploy-cloudflare-mailtm.md.
+  // DISPOSABLE_DOMAIN picks which mode the Worker runs in: set it to a
+  // domain you own to receive through Email Routing, or leave it unset
+  // entirely to run on mail.tm instead (no domain, no DNS, no Email
+  // Routing). Unset is the default precisely because it needs nothing.
   "name": "cinderbox",
   "main": "src/worker.ts",
   "compatibility_date": "2024-09-23",
