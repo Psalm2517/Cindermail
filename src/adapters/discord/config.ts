@@ -1,9 +1,7 @@
-// Self-hosters own the abuse-vs-friction tradeoff for their own deployment.
-// These aren't safety rails Cindermail needs to enforce on everyone, so
-// they're tunable via env vars rather than hardcoded. Defaults match a
-// public/multi-user deployment; a solo self-hoster who wants no limits at
-// all can set every RATE_LIMIT_*_MAX to a very large number, or 0 to disable
-// a given command's limit outright.
+// Whoever runs a deployment owns its abuse-vs-friction tradeoff, so these are
+// env vars rather than hardcoded. Defaults suit a deployment other people can
+// reach; someone running it just for themselves can raise every
+// RATE_LIMIT_*_MAX, or set it to 0 to drop that command's limit entirely.
 export interface RateLimitConfig {
   windowSeconds: number;
   maxCount: number;

@@ -28,6 +28,40 @@ async function writeGuarded(path: string, content: string): Promise<boolean> {
   return true;
 }
 
+// Writes to a live Worker, so it confirms first and names the target. Two
+// reasons that matters: `wrangler secret put` silently CREATES a Worker if
+// the name in wrangler.jsonc doesn't exist yet, and if it does exist this
+// overwrites whatever config it's currently running on.
+async function putSecrets(secrets: Record<string, string>): Promise<void> {
+  const names = Object.keys(secrets);
+  if (names.length === 0) {
+    return;
+  }
+
+  const worker = readFileSync("wrangler.jsonc", "utf8").match(/"name":\s*"([^"]*)"/)?.[1] ?? "this Worker";
+  console.log(`\nReady to set ${names.join(", ")} on the Worker "${worker}".`);
+  console.log("This writes to Cloudflare, creating that Worker if it doesn't exist yet.");
+  if (!(await confirm("Go ahead?"))) {
+    console.log("Skipped. Set them yourself with:");
+    for (const name of names) {
+      console.log(`  npx wrangler secret put ${name}`);
+    }
+    return;
+  }
+
+  for (const [name, value] of Object.entries(secrets)) {
+    try {
+      // Piped rather than prompted: the values were collected above already.
+      // wrangler reads from stdin when it isn't a TTY.
+      execFileSync("npx", ["wrangler", "secret", "put", name], { input: value, stdio: ["pipe", "ignore", "inherit"] });
+      console.log(`Set ${name}`);
+    } catch {
+      console.log(`Couldn't set ${name}. Run this yourself later:`);
+      console.log(`  npx wrangler secret put ${name}`);
+    }
+  }
+}
+
 // Secrets go through `wrangler secret put`, which prompts for the value
 // itself, so nothing sensitive is read here or written to any file.
 async function putDiscordSecrets(): Promise<void> {
@@ -119,27 +153,18 @@ async function setupCloudflare(mode: "domain" | "mailtm"): Promise<void> {
   const originalId = readFileSync("wrangler.jsonc", "utf8").match(/"database_id":\s*"([^"]*)"/)?.[1];
   const keptUpstreamId = originalId && content.includes(`"database_id": "${originalId}"`);
 
-  if (!(await writeGuarded("wrangler.jsonc", content))) {
-    return;
-  }
+  // Declining this used to return early and silently drop the answers
+  // collected above, which land in secrets rather than in this file and have
+  // nothing to do with whether it gets rewritten.
+  const wroteConfig = await writeGuarded("wrangler.jsonc", content);
 
-  if (keptUpstreamId) {
+  if (wroteConfig && keptUpstreamId) {
     console.log("\n! wrangler.jsonc still has the database_id it shipped with, which");
     console.log("  points at someone else's D1 database. Replace it with your own");
     console.log("  before deploying: `npx wrangler d1 create cinderbox` prints one.");
   }
 
-  // Piped in rather than prompted for, since these were already collected
-  // above. wrangler reads the value from stdin when it isn't a TTY.
-  for (const [name, value] of Object.entries(secrets)) {
-    try {
-      execFileSync("npx", ["wrangler", "secret", "put", name], { input: value, stdio: ["pipe", "ignore", "inherit"] });
-      console.log(`Set ${name}`);
-    } catch {
-      console.log(`Couldn't set ${name}. Run this yourself later:`);
-      console.log(`  npx wrangler secret put ${name}`);
-    }
-  }
+  await putSecrets(secrets);
 
   if (await confirm("\nSet the Discord secrets now?")) {
     await putDiscordSecrets();

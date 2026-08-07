@@ -4,10 +4,9 @@ import type { Dispatcher } from "./dispatch.ts";
 import type { SqlExecutor } from "./storage.ts";
 import type { OwnerRef, ParsedMail } from "./types.ts";
 
-// Deliberately not Cloudflare's ForwardableEmailMessage: postal-mime already
-// accepts every raw format either deployment target hands it (a Worker's
-// ReadableStream, a Buffer from a self-hosted SMTP server), so this is the
-// only shape core needs to know about.
+// Deliberately not Cloudflare's ForwardableEmailMessage: postal-mime accepts
+// every raw format either mode hands it (a ReadableStream from Email Routing,
+// a string from mail.tm's API), so this is the only shape core needs.
 export interface InboundMessage {
   to: string;
   from: string;
