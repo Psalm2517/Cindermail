@@ -18,9 +18,15 @@
   },
   "cloudflare": {
     "bindings": {
+      "DISPOSABLE_DOMAIN": {
+        "description": "A domain you own, already added to this Cloudflare account. Leave blank to run on mail.tm's domain instead, which needs no domain or DNS."
+      },
       "DISCORD_TOKEN": { "description": "Bot token, from the Bot tab of your Discord application" },
       "DISCORD_PUBLIC_KEY": { "description": "Public Key, from the General Information tab" },
-      "DISCORD_APPLICATION_ID": { "description": "Application ID, from the General Information tab" }
+      "DISCORD_APPLICATION_ID": { "description": "Application ID, from the General Information tab" },
+      "MAX_ACTIVE_ADDRESSES": {
+        "description": "Optional. How many addresses one person can hold at once. Defaults to 5."
+      }
     }
   },
   "keywords": [

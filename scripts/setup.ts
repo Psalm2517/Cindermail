@@ -81,24 +81,22 @@ async function setupCloudflare(mode: "domain" | "mailtm"): Promise<void> {
   // silently, so a stray wrangler.toml would just be ignored.
   let content = readFileSync("wrangler.jsonc", "utf8");
 
+  // Deployment-specific values go to secrets rather than into the committed
+  // file, so nothing here ends up carrying your domain into someone else's
+  // clone. Secrets also survive deploys, which plaintext dashboard variables
+  // don't.
+  const secrets: Record<string, string> = {};
+
   if (mode === "domain") {
     const domain = await ask("\nDomain addresses get generated on (e.g. yourdomain.com)");
     if (domain) {
-      content = content.replace(/("DISPOSABLE_DOMAIN":\s*)"[^"]*"/, `$1"${domain}"`);
+      secrets.DISPOSABLE_DOMAIN = domain;
     }
-  } else {
-    // An empty DISPOSABLE_DOMAIN is what puts the Worker in mail.tm mode.
-    // Emptied rather than removed so it's obvious what to fill in later to
-    // switch over to a domain.
-    content = content.replace(/("DISPOSABLE_DOMAIN":\s*)"[^"]*"/, `$1""`);
   }
+  // mail.tm mode wants DISPOSABLE_DOMAIN unset, which is already the default,
+  // so there's nothing to write for it.
 
-  for (const [key, value] of Object.entries(await askLimits())) {
-    content = content.replace(new RegExp(`("${key}":\\s*)"[^"]*"`), `$1"${value}"`);
-    if (!content.includes(`"${key}"`)) {
-      content = content.replace(/("ADAPTERS":\s*"[^"]*")/, `$1,\n    "${key}": "${value}"`);
-    }
-  }
+  Object.assign(secrets, await askLimits());
 
   if (await confirm("\nRun `wrangler d1 create cinderbox` now?")) {
     try {
@@ -129,6 +127,18 @@ async function setupCloudflare(mode: "domain" | "mailtm"): Promise<void> {
     console.log("\n! wrangler.jsonc still has the database_id it shipped with, which");
     console.log("  points at someone else's D1 database. Replace it with your own");
     console.log("  before deploying: `npx wrangler d1 create cinderbox` prints one.");
+  }
+
+  // Piped in rather than prompted for, since these were already collected
+  // above. wrangler reads the value from stdin when it isn't a TTY.
+  for (const [name, value] of Object.entries(secrets)) {
+    try {
+      execFileSync("npx", ["wrangler", "secret", "put", name], { input: value, stdio: ["pipe", "ignore", "inherit"] });
+      console.log(`Set ${name}`);
+    } catch {
+      console.log(`Couldn't set ${name}. Run this yourself later:`);
+      console.log(`  npx wrangler secret put ${name}`);
+    }
   }
 
   if (await confirm("\nSet the Discord secrets now?")) {

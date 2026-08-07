@@ -32,9 +32,7 @@
   "workers_dev": true,
   "preview_urls": true,
   "vars": {
-    "DISPOSABLE_DOMAIN": "vsvn.net",
-    "ADAPTERS": "discord",
-    "MAX_ACTIVE_ADDRESSES": "10"
+    "ADAPTERS": "discord"
   },
   "d1_databases": [
     {
