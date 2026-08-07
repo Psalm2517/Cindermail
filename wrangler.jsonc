@@ -1,40 +1,37 @@
 {
-  // Deploying your own copy? Run `npm run setup` (or edit the domain and
-  // database_id below by hand) -- the values here are the upstream
-  // deployment's, and this file is the only config wrangler reads. It takes
-  // precedence over wrangler.toml silently, so editing a .toml instead has
-  // no effect.
+  // Nothing here is specific to one deployment, so this file can be cloned
+  // or deployed by anyone as-is. Your domain and limits go in secrets
+  // (`wrangler secret put`, or the deploy button's own prompts, which cover
+  // everything listed in .dev.vars.example). Secrets stay out of the repo
+  // and survive deploys, which plaintext dashboard variables do not.
+  //
+  // DISPOSABLE_DOMAIN is what picks the Worker's mode: set it to a domain
+  // you own to receive through Email Routing, or leave it unset to run on
+  // mail.tm instead, needing no domain, no DNS and no Email Routing. Unset
+  // is the default precisely because it needs nothing.
   //
   // Committed rather than gitignored because Cloudflare Workers Builds
-  // clones the repo and needs the D1 binding present at build time;
-  // dashboard-set bindings weren't surviving into new versions. Once this
-  // file exists it is the source of truth for vars and bindings, so
+  // clones the repo and needs the D1 binding present at build time, and
+  // dashboard-set bindings don't reliably survive into new versions. Once
+  // this file exists it's the source of truth for vars and bindings, so
   // dashboard-only entries not listed here stop applying.
   //
-  // No secrets here: database_id and the domain are identifiers, not
-  // credentials. Discord secrets still live in the dashboard
-  // (Settings > Variables and secrets), untouched by this file.
-  //
-  // DISPOSABLE_DOMAIN picks which mode the Worker runs in. Set it to a
-  // domain you own to receive mail through Email Routing. Clear it (or
-  // remove the line) to run on mail.tm instead: no domain, no DNS, no
-  // Email Routing, addresses get provisioned on mail.tm's domain and their
-  // API is polled on the frequent cron below. See
-  // docs/deploy-cloudflare-mailtm.md.
+  // Custom domains are the exception: they're a zone-level resource that
+  // deploying without a "routes" key does NOT remove (verified against the
+  // API). Attach one from the dashboard under Domains & Routes and it
+  // persists. Pinning it here instead would put a hostname only one account
+  // owns into everyone's config.
   "name": "cinderbox",
   "main": "src/worker.ts",
   "compatibility_date": "2024-09-23",
   "compatibility_flags": ["nodejs_compat"],
-  // Adding "routes" below makes wrangler default workers_dev to false, which
-  // would silently kill the cinderbox.yerettehq.workers.dev URL (used for
-  // testing, and possibly still the Discord Interactions Endpoint) on the
-  // next deploy. Keeping both explicitly on.
+  // Both default to false once any route is configured, and a workers.dev
+  // URL is worth keeping: it's the fallback when no custom domain is
+  // attached, and it's a usable Discord interactions endpoint on its own.
   "workers_dev": true,
   "preview_urls": true,
   "vars": {
-    "DISPOSABLE_DOMAIN": "vsvn.net",
-    "ADAPTERS": "discord",
-    "MAX_ACTIVE_ADDRESSES": "10"
+    "ADAPTERS": "discord"
   },
   "d1_databases": [
     {
@@ -49,15 +46,8 @@
   "triggers": {
     "crons": ["0 3 * * *", "*/1 * * * *"]
   },
-  // Both of these were set only in the dashboard originally and got wiped by
-  // a plain deploy, same failure mode as the D1 binding earlier. Declared
-  // here now so a deploy can't silently strip them again.
-  "routes": [
-    {
-      "pattern": "cindermail.vsvn.net",
-      "custom_domain": true
-    }
-  ],
+  // Was dashboard-only originally and got turned off by a plain deploy, same
+  // failure mode as the D1 binding. Declared here so that can't recur.
   "observability": {
     "logs": {
       "enabled": true

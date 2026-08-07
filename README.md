@@ -16,61 +16,74 @@
 
 ---
 
-Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Whatever gets sent to it is parsed, cleaned up, and delivered to your Discord DMs. Torch it when you're done.
+Give out `x7k2p9qzrm@yourdomain.com` instead of your real address. Mail sent to it gets parsed and delivered to your Discord DMs. Torch it when you're done.
 
 ![Example delivery](docs/images/example-dm.png)
 
-Addresses live on **a domain you own**, so unlike public temp-mail services nothing recognizes them as disposable and blocks them. Mail lands in **Discord**, not another inbox you have to remember to check. It all runs on **Cloudflare's free tier**: Email Routing receives, D1 stores, one Worker does the rest. There's no server to keep alive.
+Addresses sit on a domain you own, so nothing flags them as disposable the way public temp-mail domains get flagged. Runs on Cloudflare's free tier: Email Routing receives, D1 stores, one Worker does the rest. Nothing to keep alive.
 
-No domain? It runs on mail.tm's domain instead, with nothing to buy. Same Worker, one setting.
+No domain? Leave one setting blank and it uses mail.tm's instead.
 
 ## Deploy
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Psalm2517/Cindermail)
 
-One click gets you a Worker and a database. It doesn't finish the job on its own: you still need to load the schema, point `DISPOSABLE_DOMAIN` at your domain (or clear it for mail.tm mode), wire up Email Routing, and register the Discord commands.
+Forks the repo, creates the database, deploys the Worker, prompts for your domain and Discord credentials. Blank domain means mail.tm mode.
 
-Prefer to do it locally, or want the wizard to handle the config?
+It can't load the database schema or register the slash commands with Discord. Those are in [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) and [docs/discord-adapter.md](docs/discord-adapter.md).
+
+<details>
+<summary>Prefer a local clone</summary>
 
 ```bash
+git clone https://github.com/Psalm2517/Cindermail.git
+cd Cindermail
 npm install && npm run setup
 ```
 
-Either way, [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) is the walkthrough, then [docs/discord-adapter.md](docs/discord-adapter.md) for the Discord side.
+The wizard asks the same questions and writes the same config. Use this if you'll be changing the code.
+
+</details>
 
 ## Commands
 
 | | |
 |---|---|
-| `/new [expiry] [note]` | A fresh address. Permanent unless you give it an expiry in days. |
-| `/list` | Everything you own, with notes and expiry dates. |
-| `/extend <address> [expiry]` | Change when one expires, or `expiry: 0` to make it permanent. |
-| `/note <address> [note]` | Label one so `/list` tells you what it was for. |
-| `/remind [enabled]` | Opt in to a DM about a day before an address expires. |
+| `/new [expiry] [note]` | A fresh address. Permanent unless given an expiry in days. |
+| `/list` | Your addresses, with notes and expiry. |
+| `/extend <address> [expiry]` | Change when one expires. `expiry: 0` makes it permanent. |
+| `/note <address> [note]` | Label one. Blank clears it. |
+| `/remind [enabled]` | Opt in to a DM a day before an address expires. |
 | `/torch <address>` | Kill it. |
 
-Every reply is ephemeral, visible only to whoever ran the command. Full details in [docs/discord-adapter.md](docs/discord-adapter.md).
+Replies are ephemeral, visible only to whoever ran the command. Details in [docs/discord-adapter.md](docs/discord-adapter.md).
 
 ## How it works
 
-1. `/new` generates a random address and ties it to whoever ran the command.
-2. Give that address to whatever's asking for an email, a signup form, a newsletter, whatever. Mail sent to it always comes back to you, not wherever you gave it out.
-3. Mail arrives. The Worker looks up the owner. Missing, expired, or torched: dropped, no bounce, nothing logged.
-4. Valid: the mail gets parsed (HTML to readable text, links intact, attachments forwarded) and delivered.
+1. `/new` mints a random address owned by whoever ran it.
+2. Give it out. Mail sent there comes back to you, not to wherever you used it.
+3. Mail arrives, the Worker looks up the owner. Unknown, expired or torched addresses are dropped: no bounce, nothing logged.
+4. Otherwise it's parsed (HTML to text, links intact, attachments forwarded) and DM'd to you.
 
-A daily cron clears expired and torched addresses along with stale rate-limit rows, and sends expiry reminders to anyone who asked for them.
+A daily cron deletes expired and torched addresses, clears stale rate-limit rows, and sends expiry reminders.
 
-The Worker also serves a small status page at its root with running totals, plus the same numbers as JSON at `/counters`. No addresses or owners are exposed, just counts.
+The Worker root serves a status page with running totals, also available as JSON at `/counters`. Counts only, no addresses or owners.
 
 ## Limits
 
-- 5 active addresses per owner, configurable. Torch one to make room.
-- Message bodies cap at 1500 characters inline, longer gets attached as `message.txt`.
-- Inbound HTML caps at 256KB before parsing (parsing cost scales quadratically with input, and addresses are reachable by anyone who learns one).
-- Attachments forward individually up to 25MB combined per email. Over budget gets dropped with a note, not the whole batch.
+- 5 active addresses per owner, configurable.
+- Message bodies cap at 1500 characters inline; longer is attached as `message.txt`.
+- Inbound HTML caps at 256KB before parsing. Parsing cost scales quadratically, and anyone who learns an address can send to it.
+- Attachments forward up to 25MB combined per email. Anything over budget is dropped with a note, not the whole batch.
 
-Code layout, tests, and how to add a delivery adapter: [docs/architecture.md](docs/architecture.md). Every setting: [docs/configuration.md](docs/configuration.md).
+Code layout and tests: [docs/architecture.md](docs/architecture.md). Every setting: [docs/configuration.md](docs/configuration.md).
 
 ## License
 
 MIT. See [LICENSE](./LICENSE).
+
+<div align="center">
+
+[![Built with Cloudflare](https://workers.cloudflare.com/built-with-cloudflare.svg)](https://cloudflare.com)
+
+</div>
